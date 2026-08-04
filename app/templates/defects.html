@@ -1,0 +1,74 @@
+{% extends "_layout.html" %}
+{% block title %}Defects{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>Seeded defect catalog</h1>
+  <p class="lede">Every defect is a small, believable branch inside the real code path - a rounding
+  mode, an off-by-one, a narrowed guard - not a crash. Each one is a mutant the suites are graded
+  against.</p>
+</div>
+
+<div class="note">
+  <strong>The hint column is the point.</strong> A suite does not miss a defect because it is bad; it
+  misses because it never constructed the input that would show it. Each record states exactly which
+  probe is required.
+</div>
+
+<div class="grid grid-3">
+  {% for target, blurb in targets.items() %}
+  <div class="metric">
+    <div class="metric-label">{{ target }}</div>
+    <div class="metric-value sm">{{ defects | selectattr('target', 'equalto', target) | list | length }} defects</div>
+    <div class="metric-sub">{{ blurb }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="section">
+  <div class="section-head"><h2>By category</h2></div>
+  <div class="row">
+    {% for cat in categories %}
+      <span class="pill pill-idle">{{ cat }} — {{ counts[cat] }}</span>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-head"><h2>All {{ defects | length }} defects</h2>
+    {% if data %}<span class="faint small mono">detection from run #{{ data.run.id }}</span>{% endif %}</div>
+  {% if not defects %}
+    <div class="empty">No defects in the catalog.</div>
+  {% else %}
+  <div class="card card-tight"><div class="table-wrap">
+    <table class="data">
+      <thead><tr><th>Id</th><th>Target</th><th>Title</th><th>Category</th><th>Severity</th>
+        <th class="num">Caught by</th></tr></thead>
+      <tbody>
+      {% for d in defects %}
+        <tr>
+          <td class="mono"><a href="/defects/{{ d.id }}">{{ d.id }}</a></td>
+          <td class="mono">{{ d.target }}</td>
+          <td>{{ d.title }}</td>
+          <td><span class="pill pill-idle">{{ d.category }}</span></td>
+          <td><span class="pill {{ d.severity_pill }}">{{ d.severity }}</span></td>
+          <td class="num">
+            {% if data %}
+              {% set ns = namespace(hits=0) %}
+              {% for sid in data.suite_ids %}
+                {% set info = data.detections.get((sid, d.id)) %}
+                {% if info and info.detected %}{% set ns.hits = ns.hits + 1 %}{% endif %}
+              {% endfor %}
+              {% if ns.hits %}{{ ns.hits }} / {{ data.suite_ids | length }}
+              {% else %}<span class="pill pill-fail pill-plain">0 / {{ data.suite_ids | length }}</span>{% endif %}
+            {% else %}<span class="faint">-</span>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+  {% endif %}
+</div>
+
+{% endblock %}

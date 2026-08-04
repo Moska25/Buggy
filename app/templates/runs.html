@@ -1,0 +1,41 @@
+{% extends "_layout.html" %}
+{% block title %}Runs{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>Run history</h1>
+  <p class="lede">Every benchmark and lab run is persisted with its per-check results and step logs,
+  so any run can be replayed exactly as it was computed rather than recomputed.</p>
+</div>
+
+{% if not runs %}
+  <div class="empty">No runs stored yet. Run <code>python -m app.seed</code>, or execute one from
+    <a href="/lab">the lab</a>.</div>
+{% else %}
+<div class="card card-tight"><div class="table-wrap">
+  <table class="data">
+    <thead><tr><th>Run</th><th>Kind</th><th>Created</th><th class="num">Seed</th>
+      <th class="num">Builds</th><th class="num">Checks</th><th class="num">Results</th>
+      <th class="num">Best recall</th><th class="num">Duration</th></tr></thead>
+    <tbody>
+    {% for r in runs %}
+      <tr>
+        <td class="mono"><a href="/runs/{{ r.id }}">#{{ r.id }}</a>
+          <span class="faint small">{{ r.label }}</span></td>
+        <td>{% if r.kind == 'benchmark' %}<span class="pill pill-accent">benchmark</span>
+            {% else %}<span class="pill pill-idle">lab</span>{% endif %}</td>
+        <td class="mono small">{{ r.created_at }}</td>
+        <td class="num">{{ r.seed }}</td>
+        <td class="num">{{ r.n_builds }}</td>
+        <td class="num">{{ r.n_checks }}</td>
+        <td class="num">{{ r.n_results }}</td>
+        <td class="num">{{ '%.1f' % (r.best_recall * 100) if r.best_recall is not none else '-' }}%</td>
+        <td class="num">{{ '%.0f' % r.duration_ms }} ms</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% endif %}
+
+{% endblock %}

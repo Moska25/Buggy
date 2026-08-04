@@ -1,0 +1,155 @@
+{% extends "_layout.html" %}
+{% block title %}Lab{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>Lab</h1>
+  <p class="lede">Choose which defects to build and which suites to run, execute the benchmark live,
+  and watch the scores move. Every lab run is stored and appears in <a href="/runs">run history</a>.</p>
+</div>
+
+<div class="note">
+  <strong>This runs for real.</strong> Submitting the form executes the selected suites against a
+  fresh build per selected defect, in process, and scores them with the same detection rule the
+  seeded benchmark uses. A whole run takes tens of milliseconds.
+</div>
+
+{% if error %}
+  <div class="note note-warn"><strong>Nothing to run.</strong> {{ error }}</div>
+{% endif %}
+
+<form method="post" action="/lab">
+  <div class="card">
+    <div class="card-head" style="padding:0 0 14px; border:0;">
+      <h2>Suites</h2>
+      <span class="faint small">Unticking a suite removes it from the scorecard entirely.</span>
+    </div>
+    <div class="toggles">
+      {% for s in suites %}
+      <label class="toggle">
+        <input type="checkbox" name="suite" value="{{ s.id }}" {{ 'checked' if s.id in sel_suites }}>
+        <span><b>{{ s.name }}</b> — {{ s.checks | length }} checks
+          {% if s.provenance.recorded_fixture %}<span class="pill pill-warn pill-plain">fixture</span>{% endif %}
+        </span>
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head" style="padding:0 0 14px; border:0;">
+      <h2>Defects to seed</h2>
+      <span class="faint small">One build is created per ticked defect, plus one clean build.</span>
+    </div>
+    {% for target, blurb in targets.items() %}
+      <h3 style="margin-top:14px;">{{ target }} <span class="faint small">{{ blurb }}</span></h3>
+      <div class="toggles" style="margin-top:8px;">
+        {% for d in defects if d.target == target %}
+        <label class="toggle">
+          <input type="checkbox" name="defect" value="{{ d.id }}" {{ 'checked' if d.id in sel_defects }}>
+          <span><b>{{ d.id }}</b> {{ d.title }}
+            {% if d.id == nd_id %}<span class="pill pill-warn pill-plain">flaky</span>{% endif %}</span>
+        </label>
+        {% endfor %}
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <div class="field">
+        <label for="target">Target</label>
+        <select id="target" name="target">
+          <option value="all" {{ 'selected' if sel_target == 'all' }}>all three targets</option>
+          {% for t in targets %}
+            <option value="{{ t }}" {{ 'selected' if sel_target == t }}>{{ t }} only</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="seed">Seed</label>
+        <input type="number" id="seed" name="seed" value="{{ seed if seed else 20260804 }}">
+      </div>
+      <div class="field" style="flex:0 0 auto;">
+        <label>&nbsp;</label>
+        <button class="btn btn-primary" type="submit">Run benchmark</button>
+      </div>
+    </div>
+    <p class="small faint" style="margin-top:10px;">Narrowing the target keeps only that target's
+    ticked defects, so you can score a suite on one subsystem at a time. The seed drives the
+    nondeterministic defect ({{ nd_id }}): the same seed reproduces the same run exactly, so change
+    it to see the flaky cells move.</p>
+  </div>
+</form>
+
+{% if report %}
+<div class="section">
+  <div class="section-head"><h2>Result — run #{{ report.run_id }}</h2>
+    <span class="faint small mono">{{ report.n_builds }} builds ·
+      {{ report.results | length }} check results · {{ '%.0f' % report.duration_ms }} ms ·
+      <a href="/runs/{{ report.run_id }}">replay</a></span></div>
+
+  <div class="card card-tight"><div class="table-wrap">
+    <table class="data">
+      <thead><tr><th>Suite</th><th class="num">Checks</th><th class="num">Found</th><th>Recall</th>
+        <th class="num">Precision</th><th class="num">FP checks</th><th class="num">Mean TTD</th>
+        <th class="num">Flake</th></tr></thead>
+      <tbody>
+      {% for s in report.scores %}
+        <tr>
+          <td><a href="/suites/{{ s.suite }}">{{ suite_by_id[s.suite].name }}</a></td>
+          <td class="num">{{ s.n_checks }}</td>
+          <td class="num">{{ s.detected }}/{{ s.n_defects }}</td>
+          <td>
+            <div class="row" style="gap:8px; flex-wrap:nowrap;">
+              <div class="bar {{ 'bar-pass' if s.recall >= 0.75 else ('bar-warn' if s.recall >= 0.4 else 'bar-fail') }}">
+                <span style="width: {{ '%.0f' % (s.recall * 100) }}%"></span></div>
+              <span class="num mono small nowrap">{{ '%.1f' % (s.recall * 100) }}%</span>
+            </div>
+          </td>
+          <td class="num">{{ '%.2f' % s.precision }}</td>
+          <td class="num">{{ s.fp_checks }}</td>
+          <td class="num">{{ '%.2f' % s.mttd_ms }} ms</td>
+          <td class="num">{% if s.nd_repeats %}{{ '%.2f' % s.flake_rate }}{% else %}<span class="faint">n/a</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+</div>
+
+<div class="section">
+  <div class="section-head"><h2>Matrix for this run</h2></div>
+  <div class="card"><div class="table-wrap">
+    <table class="matrix">
+      <thead><tr><th class="rot">Defect</th>
+        {% for sid in report.suite_ids %}<th>{{ suite_by_id[sid].name }}</th>{% endfor %}</tr></thead>
+      <tbody>
+      {% for did in report.defect_ids %}
+        <tr>
+          <th class="rot"><a href="/defects/{{ did }}">{{ did }}</a></th>
+          {% for sid in report.suite_ids %}
+            {% set info = report.detections.get((sid, did)) %}
+            {% if info and info.detected %}
+              <td class="hit" title="caught by {{ info.first_check_id }} after {{ '%.2f' % info.ms }} ms">+</td>
+            {% else %}
+              <td class="miss" title="{{ defect_by_id[did].hint }}">·</td>
+            {% endif %}
+          {% endfor %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+</div>
+
+{% for sid, ids in report.fp_checks.items() if ids %}
+<div class="note note-warn">
+  <strong>{{ suite_by_id[sid].name }} produced {{ ids | length }} false positive{{ 's' if ids|length != 1 }}:</strong>
+  <span class="mono">{{ ids | join(', ') }}</span>. These checks fail with no defect present, so they
+  earned no detection credit in this run.
+</div>
+{% endfor %}
+{% endif %}
+
+{% endblock %}

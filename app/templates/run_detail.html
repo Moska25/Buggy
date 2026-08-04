@@ -1,0 +1,127 @@
+{% extends "_layout.html" %}
+{% block title %}Run {{ data.run.id if data else '?' }}{% endblock %}
+{% block content %}
+
+{% if not data %}
+  <div class="page-head"><h1>Unknown run</h1><p class="lede">No stored run carries that id.</p></div>
+  <div class="empty">Back to <a href="/runs">run history</a>.</div>
+{% else %}
+
+<div class="page-head">
+  <h1>Run #{{ data.run.id }}</h1>
+  <p class="lede">{{ data.run.label or 'Stored benchmark run' }} — replayed from the persisted results,
+  step log and all.</p>
+</div>
+
+<div class="grid grid-4">
+  <div class="metric"><div class="metric-label">Seed</div>
+    <div class="metric-value sm mono">{{ data.run.seed }}</div>
+    <div class="metric-sub">same seed reproduces this run exactly</div></div>
+  <div class="metric"><div class="metric-label">Builds</div>
+    <div class="metric-value">{{ data.run.n_builds }}</div>
+    <div class="metric-sub">{{ data.defect_ids | length }} defect + 1 clean</div></div>
+  <div class="metric"><div class="metric-label">Check results</div>
+    <div class="metric-value">{{ data.run.n_results }}</div>
+    <div class="metric-sub">{{ data.run.n_checks }} checks over every build</div></div>
+  <div class="metric"><div class="metric-label">Duration</div>
+    <div class="metric-value">{{ '%.0f' % data.run.duration_ms }} ms</div>
+    <div class="metric-sub">in-process, no subprocess or browser</div></div>
+</div>
+
+<div class="section">
+  <div class="section-head"><h2>Scorecards</h2></div>
+  <div class="card card-tight"><div class="table-wrap">
+    <table class="data">
+      <thead><tr><th>Suite</th><th class="num">Checks</th><th class="num">Found</th>
+        <th class="num">Recall</th><th class="num">Precision</th><th class="num">FP</th>
+        <th class="num">Mean TTD</th><th class="num">Flake</th></tr></thead>
+      <tbody>
+      {% for s in data.scores %}
+        <tr>
+          <td><a href="/suites/{{ s.suite }}">{{ suite_by_id[s.suite].name }}</a></td>
+          <td class="num">{{ s.n_checks }}</td>
+          <td class="num">{{ s.detected }}/{{ s.n_defects }}</td>
+          <td class="num">{{ '%.1f' % (s.recall * 100) }}%</td>
+          <td class="num">{{ '%.2f' % s.precision }}</td>
+          <td class="num">{{ s.fp_checks }}</td>
+          <td class="num">{{ '%.2f' % s.mttd_ms }} ms</td>
+          <td class="num">{{ '%.2f' % s.flake_rate }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+</div>
+
+<div class="section">
+  <div class="section-head"><h2>Replay</h2></div>
+  <div class="card">
+    <form method="get" action="/runs/{{ data.run.id }}" class="toolbar">
+      <div class="field">
+        <label for="suite">Suite</label>
+        <select id="suite" name="suite">
+          {% for sid in data.suite_ids %}
+            <option value="{{ sid }}" {{ 'selected' if sid == sel_suite }}>{{ suite_by_id[sid].name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="build">Build</label>
+        <select id="build" name="build">
+          <option value="{{ clean }}" {{ 'selected' if sel_build == clean }}>clean (no defect active)</option>
+          {% for did in data.defect_ids %}
+            <option value="{{ did }}" {{ 'selected' if did == sel_build }}>{{ did }} — {{ defect_by_id[did].title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-primary" type="submit">Replay</button>
+    </form>
+  </div>
+
+  {% if sel_build == clean %}
+  <div class="note" style="margin-top:14px;">
+    <strong>Clean build.</strong> Anything failing here is a false positive: the check is asserting
+    behaviour the system never promised. Those checks earn no detection credit anywhere in this run.
+  </div>
+  {% else %}
+  <div class="note" style="margin-top:14px;">
+    <strong>Build with {{ sel_build }} active.</strong> {{ defect_by_id[sel_build].description }}
+    A failing check here counts as a detection only if the same check passed on the clean build.
+  </div>
+  {% endif %}
+
+  {% if not results %}
+    <div class="empty">No stored results for this suite and build.</div>
+  {% else %}
+  <div class="stack">
+  {% for r in results %}
+    {% set chk = find_check(r.check_id) %}
+    <div class="card">
+      <div class="row">
+        <span class="mono">{{ r.check_id }}</span>
+        {% if r.passed %}<span class="pill pill-pass">pass</span>
+        {% else %}<span class="pill pill-fail">fail</span>{% endif %}
+        <span class="muted">{{ chk.title if chk else '' }}</span>
+        <span class="spacer"></span>
+        <span class="num mono small faint">{{ '%.0f' % r.duration_us }} us</span>
+      </div>
+      <ul class="timeline" style="margin-top:14px;">
+        {% for step in loads(r.steps) %}
+          <li class="{{ 'ok' if step.kind == 'ok' else ('bad' if step.kind == 'fail' else '') }}">
+            <div class="t-when">{{ step.kind }}</div>
+            <div class="t-what">{{ step.text }}</div>
+          </li>
+        {% endfor %}
+        <li class="{{ 'ok' if r.passed else 'bad' }}">
+          <div class="t-when">result</div>
+          <div class="t-what">{{ r.detail }}</div>
+        </li>
+      </ul>
+    </div>
+  {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+{% endif %}
+{% endblock %}

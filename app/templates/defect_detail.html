@@ -1,0 +1,81 @@
+{% extends "_layout.html" %}
+{% block title %}{{ defect.id if defect else 'Not found' }}{% endblock %}
+{% block content %}
+
+{% if not defect %}
+  <div class="page-head"><h1>Unknown defect</h1>
+    <p class="lede">No seeded defect carries that id.</p></div>
+  <div class="empty">Back to the <a href="/defects">defect catalog</a>.</div>
+{% else %}
+
+<div class="page-head">
+  <h1>{{ defect.id }} — {{ defect.title }}</h1>
+  <p class="lede">{{ defect.description }}</p>
+</div>
+
+<div class="row">
+  <span class="pill pill-idle">{{ defect.category }}</span>
+  <span class="pill {{ defect.severity_pill }}">{{ defect.severity }}</span>
+  <span class="pill pill-accent pill-plain">target: {{ defect.target }}</span>
+  {% if defect.id == nd_id %}<span class="pill pill-warn">nondeterministic</span>{% endif %}
+</div>
+
+<div class="section">
+  <div class="section-head"><h2>The probe you would need</h2></div>
+  <div class="note">{{ defect.hint }}</div>
+</div>
+
+<div class="section">
+  <div class="section-head"><h2>Which suites caught it</h2>
+    {% if data %}<span class="faint small mono">run #{{ data.run.id }}</span>{% endif %}</div>
+  {% if not rows %}
+    <div class="empty">No stored run has been executed against this defect yet.</div>
+  {% else %}
+  <div class="card card-tight"><div class="table-wrap">
+    <table class="data">
+      <thead><tr><th>Suite</th><th>Result</th><th>First detecting check</th>
+        <th class="num">Detecting checks</th><th class="num">Time to detect</th></tr></thead>
+      <tbody>
+      {% for r in rows %}
+        {% set chk = find_check(r.first_check_id) %}
+        <tr>
+          <td><a href="/suites/{{ r.suite }}">{{ suite_by_id[r.suite].name }}</a></td>
+          <td>{% if r.detected %}<span class="pill pill-pass">caught</span>
+              {% else %}<span class="pill pill-fail">missed</span>{% endif %}</td>
+          <td>{% if chk %}<span class="mono">{{ chk.id }}</span><br>
+                <span class="faint small">{{ chk.title }}</span>
+              {% else %}<span class="faint">-</span>{% endif %}</td>
+          <td class="num">{{ r.n_detecting }}</td>
+          <td class="num">{% if r.detected %}{{ '%.2f' % r.ms }} ms{% else %}<span class="faint">-</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+  {% endif %}
+</div>
+
+{% if defect.id == nd_id %}
+<div class="note note-warn">
+  <strong>This is the only nondeterministic defect.</strong> It reads from a generator the runner
+  reseeds per execution, so a run is reproducible from its seed while individual repeats genuinely
+  differ. That is what makes the flake column on <a href="/benchmark">the benchmark</a> a measurement
+  rather than a constant - and it is why a suite that probes a forgery once is itself flaky.
+</div>
+{% endif %}
+
+<div class="section">
+  <div class="section-head"><h2>How it is seeded</h2></div>
+  <div class="card">
+    <p>The defect lives in <code>app/targets/{{ defect.target }}.py</code> as a branch on the active
+    defect set. The runner builds one variant with exactly <code>{{ defect.id }}</code> active and
+    nothing else, so a detection can only be attributed to this defect.</p>
+    <pre><code>if "{{ defect.id }}" in active:
+    ...  # the seeded behaviour</code></pre>
+    <p class="small faint">Back to <a href="/defects">the catalog</a> or
+    <a href="/lab">run this defect on its own in the lab</a>.</p>
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}

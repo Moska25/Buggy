@@ -1,0 +1,128 @@
+{% extends "_layout.html" %}
+{% block title %}Benchmark{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>Detection matrix</h1>
+  <p class="lede">One row per seeded defect, one column per suite. A cell is a hit only when that
+  suite failed on the defect's build <em>and</em> passed on the clean build.</p>
+</div>
+
+{% if not data %}
+  <div class="empty">No benchmark run stored yet. Run <code>python -m app.seed</code> to populate one.</div>
+{% else %}
+
+<div class="note">
+  <strong>How a hit is earned.</strong> Every defect gets its own build with exactly that defect
+  active. A check that fails on the clean build is a false positive: it is excluded from detection
+  credit entirely, however many defective builds it also fails on. Without that rule a suite could
+  top this table by asserting nonsense.
+</div>
+
+<div class="section">
+  <div class="section-head">
+    <h2>Matrix</h2>
+    <span class="faint small mono">run #{{ data.run.id }} · seed {{ data.run.seed }} ·
+      {{ data.run.n_builds }} builds · {{ data.run.n_results }} check results ·
+      {{ '%.0f' % data.run.duration_ms }} ms</span>
+  </div>
+  <div class="card card-tight"><div class="card-body"><div class="table-wrap">
+    <table class="matrix">
+      <thead>
+        <tr>
+          <th class="rot">Defect</th>
+          {% for sid in data.suite_ids %}<th>{{ suite_by_id[sid].name }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+      {% for did in data.defect_ids %}
+        {% set defect = defect_by_id[did] %}
+        <tr>
+          <th class="rot"><a href="/defects/{{ did }}">{{ did }}</a>
+            <span class="faint small">{{ defect.category }}</span></th>
+          {% for sid in data.suite_ids %}
+            {% set info = data.detections.get((sid, did)) %}
+            {% if info and info.detected %}
+              <td class="hit" title="{{ suite_by_id[sid].name }} caught {{ did }} via {{ info.first_check_id }} after {{ '%.2f' % info.ms }} ms ({{ info.n_detecting }} check(s) detected it)">
+                <a href="/defects/{{ did }}">+</a></td>
+            {% else %}
+              <td class="miss" title="{{ suite_by_id[sid].name }} did not catch {{ did }}: {{ defect.hint }}">
+                <a href="/defects/{{ did }}">·</a></td>
+            {% endif %}
+          {% endfor %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="small faint" style="margin-top:14px;">Hover a cell for the detecting check and its
+  time-to-detect, or the probe that would have been needed. Click through for the full defect record.</p>
+  </div></div>
+</div>
+
+<div class="section">
+  <div class="section-head"><h2>Scorecards</h2></div>
+  <div class="card card-tight"><div class="table-wrap">
+    <table class="data">
+      <thead><tr>
+        <th>Suite</th><th class="num">Checks</th><th class="num">Found</th><th>Recall</th>
+        <th class="num">Precision</th><th class="num">FP checks</th><th class="num">FP results</th>
+        <th class="num">Mean TTD</th><th class="num">Runtime</th><th class="num">Flake</th>
+      </tr></thead>
+      <tbody>
+      {% for s in data.scores %}
+        <tr>
+          <td><a href="/suites/{{ s.suite }}">{{ suite_by_id[s.suite].name }}</a>
+            {% if suite_by_id[s.suite].provenance.recorded_fixture %}
+            <span class="pill pill-warn pill-plain">fixture</span>{% endif %}</td>
+          <td class="num">{{ s.n_checks }}</td>
+          <td class="num">{{ s.detected }}/{{ s.n_defects }}</td>
+          <td>
+            <div class="row" style="gap:8px; flex-wrap:nowrap;">
+              <div class="bar {{ 'bar-pass' if s.recall >= 0.75 else ('bar-warn' if s.recall >= 0.4 else 'bar-fail') }}">
+                <span style="width: {{ '%.0f' % (s.recall * 100) }}%"></span></div>
+              <span class="num mono small nowrap">{{ '%.1f' % (s.recall * 100) }}%</span>
+            </div>
+          </td>
+          <td class="num">{{ '%.2f' % s.precision }}</td>
+          <td class="num">{{ s.fp_checks }}</td>
+          <td class="num">{{ s.fp_results }}</td>
+          <td class="num">{{ '%.2f' % s.mttd_ms }} ms</td>
+          <td class="num">{{ '%.1f' % s.runtime_ms }} ms</td>
+          <td class="num">{% if s.nd_repeats %}{{ '%.2f' % s.flake_rate }}{% else %}<span class="faint">n/a</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+</div>
+
+<div class="section">
+  <div class="section-head"><h2>What these columns mean, and what they do not</h2></div>
+  <div class="grid grid-2">
+    <div class="card">
+      <h3>Recall and precision</h3>
+      <p><span class="mono">recall = defects with at least one detecting check / defects seeded</span>.
+      <span class="mono">precision = failing results that are true detections / all failing results</span>.
+      A check that fails on the clean build fails on nearly every build too, so it produces many
+      spurious failures and correctly drags precision down.</p>
+      <p><strong>FP checks</strong> counts checks failing on the clean build. <strong>FP results</strong>
+      counts the individual bogus failure reports they generate across the whole matrix - the number a
+      human would actually have to triage.</p>
+    </div>
+    <div class="card">
+      <h3>Mean time-to-detect and flake</h3>
+      <p><strong>Mean TTD</strong> runs each suite in registration order and accumulates check
+      duration until the first detecting check fires. It is in-process cost only. It is <em>not</em> a
+      CI wall-clock estimate: there is no process start, no import, no fixture setup, no I/O.</p>
+      <p><strong>Flake</strong> is the share of a suite's checks whose pass/fail outcome was not
+      unanimous across {{ data.run.repeats or 0 }} repeats of the
+      <a href="/defects/{{ nd_id }}">{{ nd_id }}</a> build, the only nondeterministic defect.
+      {{ data.run.repeats or 0 }} repeats is a coarse estimator - a reading of 0.00 means "nothing
+      wobbled in {{ data.run.repeats or 0 }} tries", not "this suite is stable".</p>
+    </div>
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}

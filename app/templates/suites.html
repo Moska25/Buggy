@@ -1,0 +1,59 @@
+{% extends "_layout.html" %}
+{% block title %}Suites{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>Competing test suites</h1>
+  <p class="lede">Four suites, the same three targets, the same seeded defects. The only variable is
+  who wrote the checks and what they could see while writing them.</p>
+</div>
+
+<div class="note note-warn">
+  <strong>Provenance, stated plainly.</strong> The two suites labelled
+  <span class="pill pill-warn pill-plain">recorded fixture</span> are Python files committed to this
+  repository. They were authored once to represent their condition - spec-only, and code-reading -
+  and checked in so the benchmark is reproducible and runs offline.
+  <strong>Buggy never calls a model at run time, requires no API key, and does not regenerate a suite live.</strong>
+  Live generation is a documented future phase and is not built. Nothing on this page is the output
+  of an agent running now.
+</div>
+
+<div class="stack">
+{% for suite in suites %}
+  {% set ns = namespace(score=None) %}
+  {% if data %}{% for s in data.scores %}{% if s.suite == suite.id %}{% set ns.score = s %}{% endif %}{% endfor %}{% endif %}
+  {% set score = ns.score %}
+  <div class="card">
+    <div class="row">
+      <h2><a href="/suites/{{ suite.id }}">{{ suite.name }}</a></h2>
+      {% if suite.provenance.recorded_fixture %}
+        <span class="pill pill-warn">recorded fixture</span>
+      {% else %}
+        <span class="pill pill-idle">{{ suite.provenance.author_kind }}-authored</span>
+      {% endif %}
+      <span class="pill pill-plain pill-idle">{{ suite.checks | length }} checks</span>
+      <span class="spacer"></span>
+      {% if score %}
+        <span class="pill {{ 'pill-pass' if score.recall >= 0.75 else ('pill-warn' if score.recall >= 0.4 else 'pill-fail') }}">
+          recall {{ '%.1f' % (score.recall * 100) }}%</span>
+        <span class="pill pill-plain pill-idle">precision {{ '%.2f' % score.precision }}</span>
+      {% endif %}
+    </div>
+    <p style="margin-top:10px;">{{ suite.blurb }}</p>
+    <p class="small faint">{{ suite.expectation }}</p>
+    <div class="row small">
+      <span class="pill pill-plain {{ 'pill-accent' if suite.provenance.spec_access else 'pill-idle' }}">spec: {{ 'yes' if suite.provenance.spec_access else 'no' }}</span>
+      <span class="pill pill-plain {{ 'pill-accent' if suite.provenance.code_access else 'pill-idle' }}">code: {{ 'yes' if suite.provenance.code_access else 'no' }}</span>
+      <span class="pill pill-plain {{ 'pill-accent' if suite.provenance.tool_access else 'pill-idle' }}">tools: {{ 'yes' if suite.provenance.tool_access else 'no' }}</span>
+      <span class="faint mono">{{ suite.provenance.produced_on }}</span>
+    </div>
+  </div>
+{% endfor %}
+</div>
+
+{% if not data %}
+  <div class="section"><div class="empty">No benchmark run stored yet, so no scores are shown.
+    Run <code>python -m app.seed</code>.</div></div>
+{% endif %}
+
+{% endblock %}

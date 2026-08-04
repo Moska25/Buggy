@@ -1,0 +1,110 @@
+{% extends "_layout.html" %}
+{% block title %}{{ suite.name if suite else 'Not found' }}{% endblock %}
+{% block content %}
+
+{% if not suite %}
+  <div class="page-head"><h1>Unknown suite</h1><p class="lede">No suite carries that id.</p></div>
+  <div class="empty">Back to <a href="/suites">all suites</a>.</div>
+{% else %}
+
+<div class="page-head">
+  <h1>{{ suite.name }}</h1>
+  <p class="lede">{{ suite.blurb }}</p>
+</div>
+
+{% if suite.provenance.recorded_fixture %}
+<div class="note note-warn">
+  <strong>Recorded fixture, not a live agent.</strong> {{ suite.provenance.caveat }}
+</div>
+{% endif %}
+
+{% if score %}
+<div class="grid grid-4">
+  <div class="metric"><div class="metric-label">Recall</div>
+    <div class="metric-value {{ 'is-pass' if score.recall >= 0.75 else ('is-warn' if score.recall >= 0.4 else 'is-fail') }}">{{ '%.1f' % (score.recall * 100) }}%</div>
+    <div class="metric-sub">{{ score.detected }} of {{ score.n_defects }} defects found</div></div>
+  <div class="metric"><div class="metric-label">Precision</div>
+    <div class="metric-value">{{ '%.2f' % score.precision }}</div>
+    <div class="metric-sub">{{ score.fp_results }} of its failures were noise</div></div>
+  <div class="metric"><div class="metric-label">False positives</div>
+    <div class="metric-value {{ 'is-fail' if score.fp_checks else '' }}">{{ score.fp_checks }}</div>
+    <div class="metric-sub">checks that fail on the clean build</div></div>
+  <div class="metric"><div class="metric-label">Flake rate</div>
+    <div class="metric-value {{ 'is-warn' if score.flake_rate else '' }}">{{ '%.2f' % score.flake_rate }}</div>
+    <div class="metric-sub">{{ score.flake_checks }} unstable over {{ score.nd_repeats }} repeats;
+      caught {{ nd_id }} in {{ score.nd_hits }}/{{ score.nd_repeats }}</div></div>
+</div>
+{% endif %}
+
+<div class="section">
+  <div class="section-head"><h2>Provenance</h2></div>
+  <div class="card">
+    <dl class="prov">
+      <dt>Author kind</dt><dd>{{ suite.provenance.author_kind }}</dd>
+      <dt>Produced on</dt><dd class="mono">{{ suite.provenance.produced_on }}</dd>
+      <dt>Method</dt><dd>{{ suite.provenance.method }}</dd>
+      <dt>Spec available</dt><dd>{{ 'yes' if suite.provenance.spec_access else 'no' }}</dd>
+      <dt>Code available</dt><dd>{{ 'yes' if suite.provenance.code_access else 'no' }}</dd>
+      <dt>Tools available</dt><dd>{{ 'yes' if suite.provenance.tool_access else 'no' }}</dd>
+      <dt>Regenerated live</dt>
+      <dd>{% if suite.provenance.recorded_fixture %}
+            <span class="pill pill-warn">no — committed fixture</span>
+          {% else %}<span class="pill pill-idle">not applicable</span>{% endif %}</dd>
+      <dt>Caveat</dt><dd>{{ suite.provenance.caveat }}</dd>
+      <dt>Role here</dt><dd>{{ suite.expectation }}</dd>
+    </dl>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-head"><h2>Checks ({{ suite.checks | length }})</h2>
+    <a class="btn btn-sm" href="/benchmark">See it in the matrix</a></div>
+  {% if not suite.checks %}
+    <div class="empty">This suite registered no checks.</div>
+  {% else %}
+  <div class="card card-tight"><div class="table-wrap">
+    <table class="data">
+      <thead><tr><th>Id</th><th>Target</th><th>Title</th><th>Intent</th></tr></thead>
+      <tbody>
+      {% for c in suite.checks %}
+        <tr>
+          <td class="mono">{{ c.id }}</td>
+          <td class="mono">{{ c.target }}</td>
+          <td>{{ c.title }}</td>
+          <td class="muted">{{ c.intent }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+  {% endif %}
+</div>
+
+{% if data %}
+<div class="section">
+  <div class="section-head"><h2>Defect by defect</h2>
+    <span class="faint small mono">run #{{ data.run.id }}</span></div>
+  <div class="card card-tight"><div class="table-wrap">
+    <table class="data">
+      <thead><tr><th>Defect</th><th>Title</th><th>Result</th><th>Detected by</th>
+        <th class="num">Time to detect</th></tr></thead>
+      <tbody>
+      {% for did in data.defect_ids %}
+        {% set info = data.detections.get((suite.id, did)) %}
+        <tr>
+          <td class="mono"><a href="/defects/{{ did }}">{{ did }}</a></td>
+          <td>{{ defect_by_id[did].title }}</td>
+          <td>{% if info and info.detected %}<span class="pill pill-pass">caught</span>
+              {% else %}<span class="pill pill-fail">missed</span>{% endif %}</td>
+          <td class="mono small">{{ info.first_check_id if info and info.detected else '-' }}</td>
+          <td class="num">{% if info and info.detected %}{{ '%.2f' % info.ms }} ms{% else %}<span class="faint">-</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

@@ -1,0 +1,25 @@
+/* Buggy — accent override plus the handful of rules base.css does not cover. */
+
+:root { --accent: #f59e0b; }
+
+/* Detection matrix: keep the defect label column readable and pinned while the
+   suite columns scroll on a narrow screen. */
+.matrix th.rot { position: sticky; left: 0; background: var(--bg); z-index: 1; text-align: left; }
+.matrix td a { color: inherit; display: block; line-height: 30px; text-decoration: none; }
+.matrix td a:hover { text-decoration: none; }
+.matrix td.hit:hover, .matrix td.miss:hover { outline: 1px solid var(--border-strong); }
+
+/* Provenance panel on the suite pages. */
+.prov { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; font-size: 13px; }
+.prov dt { color: var(--text-faint); font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em;
+           text-transform: uppercase; padding-top: 3px; }
+.prov dd { margin: 0; color: var(--text-muted); }
+
+/* Lab: the per-defect checkbox grid. */
+.toggles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px 18px; }
+.toggle { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--text-muted); }
+.toggle input { margin-top: 2px; flex: none; }
+.toggle b { color: var(--text); font-weight: 550; }
+
+@media (max-width: 640px) { .prov { grid-template-columns: minmax(0, 1fr); gap: 2px 0; }
+                            .prov dd { margin-bottom: 10px; } }

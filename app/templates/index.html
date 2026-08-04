@@ -1,0 +1,121 @@
+{% extends "_layout.html" %}
+{% block title %}Overview{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>Do AI-generated tests actually catch defects?</h1>
+  <p class="lede">Buggy hosts small applications with a catalog of deliberately seeded defects, runs
+  competing test suites against every defective build, and measures which suite caught which defect.
+  The output is a detection matrix and per-suite scorecards, not a green badge.</p>
+</div>
+
+<div class="note">
+  <strong>A seeded defect is a mutant.</strong> This is mutation testing turned around: instead of
+  using mutants to grade the code, Buggy uses them to grade the test suites. A suite only scores when
+  it fails on a defective build <em>and</em> passes on the clean one - anything else is a false
+  positive, not a finding.
+</div>
+
+{% if not data %}
+  <div class="empty">No benchmark run stored yet. Run <code>python -m app.seed</code> to populate one.</div>
+{% else %}
+
+<div class="grid grid-4">
+  <div class="metric">
+    <div class="metric-label">Seeded defects</div>
+    <div class="metric-value">{{ data.defect_ids | length }}</div>
+    <div class="metric-sub">across {{ targets | length }} targets, {{ categories | length }} categories</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Checks executed</div>
+    <div class="metric-value">{{ data.run.n_results }}</div>
+    <div class="metric-sub">{{ head.total_checks }} checks over {{ data.run.n_builds }} builds</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Best recall</div>
+    <div class="metric-value is-pass">{{ '%.0f' % (head.best.recall * 100) }}%</div>
+    <div class="metric-sub">{{ suite_by_id[head.best.suite].name }} — {{ head.best.detected }}/{{ head.best.n_defects }} found</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Worst recall</div>
+    <div class="metric-value is-fail">{{ '%.0f' % (head.worst.recall * 100) }}%</div>
+    <div class="metric-sub">{{ suite_by_id[head.worst.suite].name }} — {{ head.worst.detected }}/{{ head.worst.n_defects }} found</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-head"><h2>What this run actually found</h2>
+    <span class="faint small mono">run #{{ data.run.id }} · seed {{ data.run.seed }} · {{ data.run.created_at }}</span></div>
+  <div class="card">
+    <p>Every sentence below is computed from run #{{ data.run.id }}, not written by hand.</p>
+    <ul class="stack" style="margin:0; padding-left:18px;">
+      <li>The spread between the best and worst suite is
+        <strong class="mono">{{ '%.0f' % ((head.best.recall - head.worst.recall) * 100) }} points</strong>
+        of recall, on identical defects and identical targets.</li>
+      {% if head.missed_by_all %}
+      <li><strong>{{ head.missed_by_all | length }} defect{{ 's' if head.missed_by_all|length != 1 }}
+        ({{ head.missed_by_all | join(', ') }}) survived every suite</strong>, including the expert one.
+        {% for d in head.missed_by_all %}<span class="faint">{{ defect_by_id[d].title }}.</span>{% endfor %}</li>
+      {% endif %}
+      {% if head.caught_by_one %}
+      <li>{{ head.caught_by_one | length }} defect{{ 's' if head.caught_by_one|length != 1 }} were caught by
+        exactly one suite ({{ head.caught_by_one | join(', ') }}) - the thin margin that separates
+        "we tested it" from "we would have shipped it".</li>
+      {% endif %}
+      {% if head.total_fp %}
+      <li>{{ head.total_fp }} check{{ 's' if head.total_fp != 1 }} fail against the clean build. They
+        report defects that do not exist and earn zero detection credit.</li>
+      {% endif %}
+    </ul>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-head"><h2>Suites</h2><a class="btn btn-sm" href="/suites">All suites and provenance</a></div>
+  <div class="card card-tight"><div class="table-wrap">
+    <table class="data">
+      <thead><tr><th>Suite</th><th>Author</th><th class="num">Checks</th><th class="num">Recall</th>
+        <th class="num">Precision</th><th class="num">False positives</th></tr></thead>
+      <tbody>
+      {% for s in data.scores %}
+        {% set suite = suite_by_id[s.suite] %}
+        <tr>
+          <td><a href="/suites/{{ s.suite }}">{{ suite.name }}</a></td>
+          <td>{% if suite.provenance.recorded_fixture %}
+              <span class="pill pill-warn">recorded fixture</span>
+              {% else %}<span class="pill pill-idle">{{ suite.provenance.author_kind }}</span>{% endif %}</td>
+          <td class="num">{{ s.n_checks }}</td>
+          <td class="num">{{ '%.1f' % (s.recall * 100) }}%</td>
+          <td class="num">{{ '%.2f' % s.precision }}</td>
+          <td class="num">{{ s.fp_checks }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+</div>
+
+<div class="section">
+  <div class="section-head"><h2>Where to look</h2></div>
+  <div class="grid grid-2">
+    <div class="card">
+      <h3><a href="/benchmark">The detection matrix</a></h3>
+      <p>Defects down, suites across. Hover any cell for the check that caught it, and read the
+      per-suite scorecards underneath.</p>
+      <h3><a href="/defects">Defect catalog</a></h3>
+      <p>All {{ data.defect_ids | length }} seeded defects, each with the probe a tester would need to
+      construct to see it at all.</p>
+    </div>
+    <div class="card">
+      <h3><a href="/suites">Suites and provenance</a></h3>
+      <p>Who wrote each suite, with what access. The two LLM suites are labelled recorded fixtures -
+      nothing is generated at run time.</p>
+      <h3><a href="/lab">Lab</a></h3>
+      <p>Pick defects and suites, run the benchmark live, and watch a suite's recall move when you
+      change what it is up against.</p>
+    </div>
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}
