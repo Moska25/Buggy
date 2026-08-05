@@ -21,7 +21,7 @@ def client():
     "/", "/benchmark", "/defects", "/suites", "/runs", "/lab",
     "/defects/CHK-003", "/defects/AUT-006", "/defects/LED-001",
     "/suites/expert", "/suites/checklist", "/suites/llm_naive", "/suites/llm_tooled",
-    "/runs/1", "/static/base.css", "/static/app.css",
+    "/runs/1", "/static/app.css", "/static/organic.css", "/static/app.js",
 ])
 def test_route_returns_200(client, path):
     response = client.get(path)
@@ -48,7 +48,11 @@ def test_every_suite_has_a_detail_page(client):
 
 def test_matrix_renders_one_cell_per_defect_and_suite(client):
     body = client.get("/benchmark").text
-    assert body.count('class="hit"') + body.count('class="miss"') == len(DEFECTS) * len(SUITE_IDS)
+    # the wheel draws one arc per cell, the grid one pip per cell: both boards
+    # are rendered server-side, so each defect-by-suite pair appears twice
+    assert body.count('class="arc ') == len(DEFECTS) * len(SUITE_IDS)
+    assert (body.count('class="pip"') + body.count('class="pip miss"')
+            == len(DEFECTS) * len(SUITE_IDS))
 
 
 def test_recorded_fixture_suites_are_labelled_on_the_suites_page(client):
@@ -66,7 +70,7 @@ def test_a_recorded_suite_page_states_it_is_not_regenerated_live(client):
 
 def test_run_replay_shows_the_step_log(client):
     body = client.get("/runs/1?suite=expert&build=CHK-004").text
-    assert "timeline" in body
+    assert 'class="steps"' in body
     assert "shipping free at the threshold" in body
 
 
@@ -80,7 +84,7 @@ def test_lab_post_runs_and_renders_a_scorecard(client):
     assert response.status_code == 200
     assert "Result: run #" in response.text
     assert "Detection matrix" not in response.text  # the lab renders its own heading
-    assert "Matrix for this run" in response.text
+    assert "The board for this run" in response.text
 
 
 def test_lab_post_with_nothing_selected_explains_itself(client):
@@ -103,16 +107,15 @@ def test_lab_run_is_persisted_and_replayable(client):
     replay = client.get(f"/runs/{run_id}?suite=checklist&build=CHK-005")
     assert replay.status_code == 200
     assert "CHK-005" in replay.text
-    assert "timeline" in replay.text  # the stored step log, not a recomputation
+    assert 'class="steps"' in replay.text  # the stored step log, not a recomputation
 
 
 def test_pages_carry_the_shared_shell(client):
     for path in ("/", "/benchmark", "/defects", "/suites", "/runs", "/lab"):
         body = client.get(path).text
-        assert '<link rel="stylesheet" href="/static/base.css">' in body
         assert '<link rel="stylesheet" href="/static/app.css">' in body
-        assert "<h1>" in body
-        assert 'class="lede"' in body
+        assert "<h1 " in body
+        assert 'class="lede' in body
 
 
 def test_no_emoji_in_rendered_pages(client):
@@ -132,8 +135,8 @@ def test_lab_target_filter_narrows_the_defect_set(client):
     body = response.text
     # only the two ledger defects should have been built
     assert "LED-001" in body and "LED-003" in body
-    assert "3 builds" in body or "Matrix for this run" in body
-    assert ">CHK-002</a>" not in body.split("Matrix for this run")[-1]
+    assert "3 builds" in body or "The board for this run" in body
+    assert ">CHK-002</a>" not in body.split("The board for this run")[-1]
 
 
 def test_lab_target_filter_with_no_matching_defect_explains_itself(client):

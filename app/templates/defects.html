@@ -1,57 +1,51 @@
 {% extends "_layout.html" %}
+{% import "_bits.html" as bits %}
 {% block title %}Defects{% endblock %}
 {% block content %}
 
-<div class="page-head">
-  <h1>Seeded defect catalog</h1>
-  <p class="lede">Every defect is a small, believable branch inside the real code path - a rounding
-  mode, an off-by-one, a narrowed guard - not a crash. Each one is a mutant the suites are graded
-  against.</p>
-</div>
+<section class="wrap" style="padding-top: 52px;">
+  <h6 class="kicker">Catalog</h6>
+  <h1 class="page-title">{{ defects | length }} planted defects</h1>
+  <p class="lede">
+    Each one is a small, believable branch inside the real code path — a rounding mode, an off-by-one,
+    a narrowed guard. None of them crash. A suite does not miss a defect because it is bad; it misses
+    because it never built the input that would show it, and every record here says which input that is.
+  </p>
+</section>
 
-<div class="note">
-  <strong>The hint column is the point.</strong> A suite does not miss a defect because it is bad; it
-  misses because it never constructed the input that would show it. Each record states exactly which
-  probe is required.
-</div>
-
-<div class="grid grid-3">
-  {% for target, blurb in targets.items() %}
-  <div class="metric">
-    <div class="metric-label">{{ target }}</div>
-    <div class="metric-value sm">{{ defects | selectattr('target', 'equalto', target) | list | length }} defects</div>
-    <div class="metric-sub">{{ blurb }}</div>
-  </div>
-  {% endfor %}
-</div>
-
-<div class="section">
-  <div class="section-head"><h2>By category</h2></div>
-  <div class="row">
-    {% for cat in categories %}
-      <span class="pill pill-idle">{{ cat }} {{ counts[cat] }}</span>
+<section class="wrap section-tight reveal">
+  <div class="grid-auto">
+    {% for target, blurb in targets.items() %}
+    <div class="tile" style="padding: 24px;">
+      <div style="font-family: var(--font-heading); font-size: 20px; color: var(--color-accent-700);">{{ target }}</div>
+      <div class="figure num" style="font-size: 36px; margin-top: 6px;">{{ defects | selectattr('target', 'equalto', target) | list | length }}</div>
+      <p class="muted" style="font-size: 13.5px; margin: 8px 0 0;">{{ blurb }}</p>
+    </div>
     {% endfor %}
   </div>
-</div>
+  <div class="row" style="gap: 8px; margin-top: 20px;">
+    {% for cat in categories %}
+      <span class="tag tag-accent-2">{{ cat }} {{ counts[cat] }}</span>
+    {% endfor %}
+  </div>
+</section>
 
-<div class="section">
-  <div class="section-head"><h2>All {{ defects | length }} defects</h2>
-    {% if data %}<span class="faint small mono">detection from run #{{ data.run.id }}</span>{% endif %}</div>
+<section class="wrap section-tight reveal">
   {% if not defects %}
     <div class="empty">No defects in the catalog.</div>
   {% else %}
-  <div class="card card-tight"><div class="table-wrap">
-    <table class="data">
-      <thead><tr><th>Id</th><th>Target</th><th>Title</th><th>Category</th><th>Severity</th>
-        <th class="num">Caught by</th></tr></thead>
+  <div class="tablewrap">
+    <table class="table" style="min-width: 780px;">
+      <thead><tr><th>Id</th><th>Title</th><th>Target</th><th>Kind</th><th>Severity</th>
+        <th class="right">Caught by</th></tr></thead>
       <tbody>
       {% for d in defects %}
         <tr>
-          <td class="mono"><a href="/defects/{{ d.id }}">{{ d.id }}</a></td>
-          <td class="mono">{{ d.target }}</td>
-          <td>{{ d.title }}</td>
-          <td><span class="pill pill-idle">{{ d.category }}</span></td>
-          <td><span class="pill {{ d.severity_pill }}">{{ d.severity }}</span></td>
+          <td><a href="/defects/{{ d.id }}" class="mono">{{ d.id }}</a></td>
+          <td style="max-width: 34ch;">{{ d.title }}</td>
+          <td class="muted" style="font-size: 13px;">{{ d.target }}</td>
+          <td><span class="tag tag-neutral">{{ d.category }}</span></td>
+          <td><span class="{{ bits.sev_tag(d.severity) | trim }}">{{ d.severity }}</span></td>
           <td>
             {% if data %}
               {% set ns = namespace(hits=0) %}
@@ -59,27 +53,29 @@
                 {% set info = data.detections.get((sid, d.id)) %}
                 {% if info and info.detected %}{% set ns.hits = ns.hits + 1 %}{% endif %}
               {% endfor %}
-              {# one lamp per suite, in the same order and the same lit/recessed
-                 language as the matrix on /benchmark #}
-              <div class="pips {{ 'is-none' if not ns.hits }}">
+              {# one pip per suite, in the same order and the same filled/hollow
+                 language as the board on /benchmark #}
+              <div class="row" style="justify-content: flex-end; gap: 5px; flex-wrap: nowrap;">
                 {% for sid in data.suite_ids %}
                   {% set info = data.detections.get((sid, d.id)) %}
                   {% if info and info.detected %}
-                    <i class="led-hit" title="{{ suite_by_id[sid].name }} caught it via {{ info.first_check_id }}">+</i>
+                    <span class="pip-sm" title="{{ suite_by_id[sid].name }} caught it via {{ info.first_check_id }}"></span>
                   {% else %}
-                    <i class="led-miss" title="{{ suite_by_id[sid].name }} missed it">·</i>
+                    <span class="pip-sm miss" title="{{ suite_by_id[sid].name }} missed it"></span>
                   {% endif %}
                 {% endfor %}
-                <span class="pips-count">{{ ns.hits }}/{{ data.suite_ids | length }}</span>
+                <span class="pip-count num {{ 'none' if not ns.hits }}">{{ ns.hits }}/{{ data.suite_ids | length }}</span>
               </div>
-            {% else %}<span class="faint">-</span>{% endif %}
+            {% else %}<span class="muted">—</span>{% endif %}
           </td>
         </tr>
       {% endfor %}
       </tbody>
     </table>
-  </div></div>
+  </div>
+  {% if data %}<p class="muted" style="font-size: 13px; margin-top: 14px;">Detection read from run
+    #{{ data.run.id }}.</p>{% endif %}
   {% endif %}
-</div>
+</section>
 
 {% endblock %}

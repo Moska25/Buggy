@@ -3,8 +3,9 @@
 A benchmark harness that answers one question with evidence: do AI-generated tests actually
 catch real defects, or do they just look like tests?
 
-![The detection matrix: 17 seeded defects down, 4 competing test suites across. A lit cell is a
-defect that suite caught; a recessed cell is one it missed.](docs/screenshots/hero.png)
+![The catch wheel: 17 seeded defects as spokes, 4 competing test suites as rings running
+best-recall-first from the centre out. A filled arc is a defect that suite caught; a hollow arc is
+one it missed.](docs/screenshots/hero.png)
 
 ## What it does
 
@@ -108,10 +109,10 @@ rather than buried in a column.
 ![Ranked scoreboard: expert 94.1% recall at 1.00 precision, LLM spec-only 41.2% at 0.17 with 35
 false positives](docs/screenshots/scoreboard.png)
 
-**The catalog** on `/defects`. Each row carries one lamp per suite in matrix order, so
-`CHK-003` reads as four recessed lamps and a red `0/4` without opening anything.
+**The catalog** on `/defects`. Each row carries one pip per suite in board order, so
+`CHK-003` reads as four hollow pips and a `0/4` without opening anything.
 
-![Defect catalog: 17 rows, each with a four-lamp detection strip and a caught-by
+![Defect catalog: 17 rows, each with a four-pip detection strip and a caught-by
 count](docs/screenshots/catalog.png)
 
 **The run replay** on `/runs/1?suite=expert&build=CHK-004`. Every check is replayed from the
@@ -135,8 +136,8 @@ execute the benchmark live in a few tens of milliseconds.
 **At 375px.** Every page holds at mobile width with no horizontal page scroll; wide boards scroll
 inside their own container.
 
-![The overview at 375px wide: the verdict card stacks under the headline and the
-findings become one column](docs/screenshots/mobile-375.png)
+![The overview at 375px wide: the stat tiles stack under the headline, the wheel takes the
+full width and the findings become one column](docs/screenshots/mobile-375.png)
 
 ## How it works
 
@@ -208,10 +209,38 @@ live.** Nothing in the UI is the output of an agent running now. Both suites are
 `recorded fixture` on `/suites`, on their detail pages, and in the lab. Live generation is Phase
 6 in `TODO.md` (BUG-6.1 to BUG-6.4) and is not built.
 
+## The interface
+
+The pages are server-rendered Jinja over the **Organic** design system, which ships as one
+stylesheet of tokens and component classes:
+
+```
+app/static/organic.css        the design system, unmodified - tokens, .btn, .tag, .table, .card
+app/static/app.css            the app layer: layout, the scoreboard, the catch wheel, the lab
+app/static/app.js             the only script: scroll reveal, wheel hover, board switch, tick-all
+app/wheel.py                  catch-wheel geometry, computed server-side from the stored run
+```
+
+Every colour, radius and font is a `var(--…)` from `organic.css`; nothing in `app.css` hard-codes a
+hex. The catch wheel is plain SVG built in Python, so it renders with scripting disabled - `app.js`
+only adds hover, the wheel/grid switch, and the lab's tick-all buttons.
+
+### The same UI as a Next.js app
+
+`web/` is a Next.js 15 App Router port of the same interface against a static snapshot of run #1
+(`web/lib/run.json`). Everything is a server component except the wheel, the board switch, the nav
+and the reveal wrapper; wheel geometry is computed server-side in `web/lib/data.ts`. Its `/lab`
+posts to `web/app/api/lab/route.ts`, which needs a JSON sibling of the Python form POST -
+`web/README.md` states that gap and the others plainly.
+
+```bash
+cd web && npm install && npm run dev
+```
+
 ## Tests
 
 ```bash
-./.venv/bin/python -m pytest -q      # 172 tests, all passing
+./.venv/bin/python -m pytest -q      # 173 tests, all passing
 ```
 
 What they cover:

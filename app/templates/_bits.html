@@ -3,13 +3,69 @@
 
 {% macro statusline(run_id, seed, builds, results, ms, link=None) %}
 <div class="statusline">
-  <span>run <b>#{{ run_id }}</b></span>
-  <span>seed <b>{{ seed }}</b></span>
-  <span><b>{{ builds }}</b> builds</span>
-  <span><b>{{ results }}</b> check results</span>
-  <span><b>{{ '%.0f' % ms }}</b> ms in process</span>
-  {% if link %}<span><a href="{{ link }}">replay</a></span>{% endif %}
+  <span class="tag tag-accent">run #{{ run_id }} · seed {{ seed }}</span>
+  <span class="tag tag-neutral">{{ builds }} builds</span>
+  <span class="tag tag-neutral">{{ results }} check results</span>
+  <span class="tag tag-neutral">{{ '%.0f' % ms }} ms in process</span>
+  {% if link %}<a class="tag tag-outline" href="{{ link }}">replay the run</a>{% endif %}
 </div>
 {% endmacro %}
 
+{# Which of the three bands a ratio falls in. The figure/meter classes below
+   are the redesign's own colour language for the same three bands. #}
 {% macro band(value, good=0.75, fair=0.4) %}{{ 'pass' if value >= good else ('warn' if value >= fair else 'fail') }}{% endmacro %}
+{% macro figure_class(value, good=0.75, fair=0.4) %}{{ 'is-caught' if value >= good else ('is-mid' if value >= fair else 'is-missed') }}{% endmacro %}
+{% macro meter_class(value, good=0.75, fair=0.4) %}{{ '' if value >= good else ('mid' if value >= fair else 'low') }}{% endmacro %}
+{% macro sev_tag(severity) %}{{ {'blocker': 'tag tag-accent', 'major': 'tag tag-outline', 'minor': 'tag tag-neutral'}.get(severity, 'tag tag-neutral') }}{% endmacro %}
+
+{% macro meter(value) %}
+<div class="meter {{ meter_class(value) | trim }}"><span style="width: {{ '%.0f' % (value * 100) }}%"></span></div>
+{% endmacro %}
+
+{% macro result_tag(detected) %}
+<span class="tag {{ 'tag-accent-2' if detected else 'tag-outline' }}">{{ 'caught' if detected else 'missed' }}</span>
+{% endmacro %}
+
+{# The catch wheel. Geometry comes from app/wheel.py; app.js only adds hover. #}
+{% macro catch_wheel(wheel) %}
+<div>
+  <div class="wheel-box">
+    <svg viewBox="0 0 {{ wheel.viewbox }} {{ wheel.viewbox }}" role="img"
+         aria-label="Detection wheel: {{ wheel.spokes | length }} defects by {{ wheel.rings | length }} test suites">
+      {% for c in wheel.cells %}
+      <path d="{{ c.d }}" class="arc {{ 'arc-hit' if c.hit else 'arc-miss' }}"
+            style="animation-delay: {{ c.delay_ms }}ms"
+            data-defect="{{ c.defect_id }}" data-caption="{{ c.caption }}"
+            {% if c.href %}data-href="{{ c.href }}"{% endif %}><title>{{ c.tip }}</title></path>
+      {% endfor %}
+    </svg>
+    <div class="spokes">
+      {% for s in wheel.spokes %}
+      <span data-defect="{{ s.defect_id }}" style="left: {{ s.left }}; top: {{ s.top }}">{{ s.label }}</span>
+      {% endfor %}
+    </div>
+    <div class="hub num">{{ wheel.hub }}</div>
+  </div>
+  <p class="wheel-caption" aria-live="polite">{{ wheel.caption }}</p>
+</div>
+{% endmacro %}
+
+{% macro ring_legend(wheel) %}
+<div class="ring-legend">
+  {% for r in wheel.rings %}
+  <div class="ring">
+    <span class="ring-swatch {{ figure_class(r.recall) | trim }}"
+          style="background: color-mix(in srgb, currentColor {{ '%.0f' % (r.recall * 100) }}%, transparent)" aria-hidden="true"></span>
+    <span class="ring-name">{{ r.name }}</span>
+    <span class="ring-pct num {{ figure_class(r.recall) | trim }}">{{ '%.1f' % (r.recall * 100) }}%</span>
+  </div>
+  {% endfor %}
+</div>
+{% endmacro %}
+
+{% macro board_legend() %}
+<div class="legend">
+  <span><span class="pip-sm" aria-hidden="true"></span> caught: failed on the broken build, passed on the clean one</span>
+  <span><span class="pip-sm miss" aria-hidden="true"></span> missed: the defect survived this suite</span>
+</div>
+{% endmacro %}

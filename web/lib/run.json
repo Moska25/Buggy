@@ -1,0 +1,652 @@
+{
+  "projectName": "Buggy",
+  "tagline": "AI-native QA benchmark arena",
+  "footerNote": "Seeded defects are mutants. Mutation testing, inverted to grade the tests.",
+  "targets": {
+    "checkout": "Cart pricing: tiers, promos, shipping threshold, VAT.",
+    "authn": "Token issue and verification: expiry, signature, scope, revocation.",
+    "ledger": "Double-entry ledger: idempotency, invariants, pagination, currency."
+  },
+  "categories": [
+    "correctness",
+    "boundary",
+    "security",
+    "contract",
+    "state",
+    "nondeterminism"
+  ],
+  "defects": [
+    {
+      "id": "CHK-001",
+      "target": "checkout",
+      "category": "correctness",
+      "severity": "major",
+      "title": "Promo percentage discounts shipping too",
+      "description": "The promo code percentage is applied to goods plus shipping instead of goods alone, so every discount code silently discounts delivery as well.",
+      "hint": "Price a cart below the free-shipping threshold with a promo code applied, and assert the promo discount equals the percentage of goods only. A cart that already qualifies for free shipping cannot see this defect."
+    },
+    {
+      "id": "CHK-002",
+      "target": "checkout",
+      "category": "boundary",
+      "severity": "major",
+      "title": "Quantity discount tier excludes its own boundary",
+      "description": "The tier test is qty > minimum rather than qty >= minimum, so a line of exactly 3, 6 or 12 units is charged at the tier below the one advertised.",
+      "hint": "Price lines at exactly 3, 6 and 12 units. Quantities either side of a boundary behave correctly, so only the boundary values themselves expose it."
+    },
+    {
+      "id": "CHK-003",
+      "target": "checkout",
+      "category": "correctness",
+      "severity": "minor",
+      "title": "Total rounds half-to-even instead of half-up",
+      "description": "The single final quantize uses banker's rounding. Identical to the correct result on 99% of carts; one cent low on an exact half-cent tie.",
+      "hint": "Construct a cart whose pre-rounding total lands exactly on a half cent with an even preceding digit - 5 units at 1.41 gives 14.605 pre-VAT-rounding and is the cheapest such cart. Measured by brute force, only about 1% of single-line carts expose this at all."
+    },
+    {
+      "id": "CHK-004",
+      "target": "checkout",
+      "category": "boundary",
+      "severity": "major",
+      "title": "Free-shipping threshold is exclusive",
+      "description": "Free shipping tests goods > 50.00 instead of >= 50.00, so an order of exactly the advertised threshold is charged the delivery fee.",
+      "hint": "Price a cart whose goods total is exactly 50.00 and assert shipping is zero. 49.99 and 50.01 both behave correctly."
+    },
+    {
+      "id": "CHK-005",
+      "target": "checkout",
+      "category": "correctness",
+      "severity": "blocker",
+      "title": "VAT computed on the pre-discount subtotal",
+      "description": "Tax is calculated from goods plus shipping, ignoring the promo discount, so every discounted order is overcharged VAT on money the customer never paid.",
+      "hint": "Price the same cart with and without a promo code and assert the VAT falls in proportion. Checking only the discount line, or only an undiscounted cart, misses it entirely."
+    },
+    {
+      "id": "CHK-006",
+      "target": "checkout",
+      "category": "contract",
+      "severity": "minor",
+      "title": "Non-positive quantity validation dropped",
+      "description": "The guard rejecting qty <= 0 is gone. A negative line quantity is accepted and becomes a silent credit against the order total.",
+      "hint": "Assert that a cart line with qty 0 or -1 raises ValueError. Any suite that only feeds valid carts cannot see a missing validation guard."
+    },
+    {
+      "id": "AUT-001",
+      "target": "authn",
+      "category": "security",
+      "severity": "blocker",
+      "title": "Expired tokens accepted inside a one-hour grace window",
+      "description": "A 3600-second leeway was added 'for clock skew'. Tokens keep verifying for a full hour after they expire.",
+      "hint": "Verify a token at exactly one second past expiry. Probing far past expiry - the obvious way to write an expiry test - still gets rejected, so the defect hides from anyone who does not test at the edge."
+    },
+    {
+      "id": "AUT-002",
+      "target": "authn",
+      "category": "security",
+      "severity": "blocker",
+      "title": "Signature compared on its first 8 characters only",
+      "description": "The HMAC comparison is truncated to 8 hex characters, reducing a 256-bit signature to 32 bits of real protection.",
+      "hint": "Tamper with the tail of a valid signature and assert verification fails. Replacing the whole signature with garbage is still rejected, so the standard 'a bad signature is refused' assertion passes."
+    },
+    {
+      "id": "AUT-003",
+      "target": "authn",
+      "category": "security",
+      "severity": "major",
+      "title": "Substring role test bypasses the scope check",
+      "description": "The admin bypass matches any role containing 'admin', so roles such as billing_admin or admin_readonly skip scope authorisation entirely.",
+      "hint": "Issue a token whose role merely contains the substring 'admin' and no scopes, then demand a privileged scope. Testing the literal roles 'admin' and 'user' shows correct behaviour in both directions."
+    },
+    {
+      "id": "AUT-004",
+      "target": "authn",
+      "category": "contract",
+      "severity": "minor",
+      "title": "Malformed token returns None instead of raising",
+      "description": "The documented contract is claims-or-AuthError. A malformed token now returns None, so callers that bind the result carry a None identity into the session.",
+      "hint": "Assert that garbage input raises AuthError specifically, not merely that it is falsy. assert not verify_token(...) passes against this defect."
+    },
+    {
+      "id": "AUT-005",
+      "target": "authn",
+      "category": "state",
+      "severity": "major",
+      "title": "Revocation matched against subject instead of token id",
+      "description": "The revocation list holds token ids but is checked against the subject claim, so revoking a token has no effect at all.",
+      "hint": "Issue a token, revoke it by its jti, then verify it again and expect rejection. Requires carrying state between two calls; a single-call test cannot see it."
+    },
+    {
+      "id": "AUT-006",
+      "target": "authn",
+      "category": "nondeterminism",
+      "severity": "major",
+      "title": "Signature verification sampled by a load-shedding fast path",
+      "description": "A performance 'fast path' skips signature verification on roughly 30% of calls. A forged token is therefore accepted intermittently rather than never.",
+      "hint": "Verify a forged token repeatedly rather than once. A single probe catches this about 30% of the time, so a suite that asserts it once is itself flaky - which is what the flake-rate column measures."
+    },
+    {
+      "id": "LED-001",
+      "target": "ledger",
+      "category": "state",
+      "severity": "blocker",
+      "title": "Idempotency guard narrowed to zero-amount entries",
+      "description": "The dedupe guard now only fires when the entry amount is zero, so any real retry of a payment posts a second time and the ledger double-counts.",
+      "hint": "Post the identical entry twice with the same idempotency key and assert the ledger holds one row. A suite that posts each fixture once cannot see it."
+    },
+    {
+      "id": "LED-002",
+      "target": "ledger",
+      "category": "correctness",
+      "severity": "blocker",
+      "title": "Double-entry invariant skipped for small entries",
+      "description": "Entries whose largest leg is under 10.00 bypass the balance check, so unbalanced small entries are accepted and corrupt every downstream balance.",
+      "hint": "Post a deliberately unbalanced entry under 10.00 and assert it is refused. An unbalanced entry over the threshold is still correctly refused."
+    },
+    {
+      "id": "LED-003",
+      "target": "ledger",
+      "category": "contract",
+      "severity": "major",
+      "title": "Page offset off by one after the first page",
+      "description": "Pages after the first start one row early, so every page boundary repeats the previous page's last row and a paged export double-counts.",
+      "hint": "Read two adjacent pages and assert their ids are disjoint and contiguous. Reading page 1 alone, or checking only page length, shows nothing wrong."
+    },
+    {
+      "id": "LED-004",
+      "target": "ledger",
+      "category": "correctness",
+      "severity": "major",
+      "title": "Account balance sums across currencies",
+      "description": "The currency filter is ignored, so EUR and USD legs are added together as if the rate were 1.0 and the reported balance is meaningless.",
+      "hint": "Seed one account with entries in two currencies, then ask for the balance in one of them. A single-currency ledger cannot expose this."
+    },
+    {
+      "id": "LED-005",
+      "target": "ledger",
+      "category": "security",
+      "severity": "major",
+      "title": "Tenant filter dropped on the unfiltered listing",
+      "description": "When no account filter is supplied the tenant filter is skipped entirely, so the default listing returns every tenant's entries.",
+      "hint": "List entries for one tenant with no other filter, in a store holding more than one tenant, and assert every row belongs to the caller. Listing with an account filter applies the tenant filter correctly."
+    }
+  ],
+  "suites": [
+    {
+      "id": "expert",
+      "name": "Expert",
+      "authorKind": "human",
+      "recordedFixture": false,
+      "blurb": "Careful human-style checks: exact expected values, both sides of every boundary, stateful sequences, and a few invariant assertions.",
+      "expectation": "Reference ceiling. Everything else is measured against this.",
+      "producedOn": "2026-08-04",
+      "spec": true,
+      "code": true,
+      "tools": true,
+      "method": "Hand-written against the target source with the defect catalog hidden.",
+      "caveat": "Written by the same author as the targets, which is a real bias: the ceiling is 'what this author thought to probe', not 'what is findable'."
+    },
+    {
+      "id": "checklist",
+      "name": "Spec checklist",
+      "authorKind": "human",
+      "recordedFixture": false,
+      "blurb": "Shallow happy-path checks read straight off the spec. Loose assertions - 'the total is positive', 'the discount reduces it' - and no exact values.",
+      "expectation": "The control. This is what a suite looks like when it only looks like a suite.",
+      "producedOn": "2026-08-04",
+      "spec": true,
+      "code": false,
+      "tools": false,
+      "method": "Transcribed from the written spec bullet by bullet, without reading the code.",
+      "caveat": "Deliberately shallow. Included as a floor, not as a straw man to beat."
+    },
+    {
+      "id": "llm_naive",
+      "name": "LLM, spec only",
+      "authorKind": "llm-recorded",
+      "recordedFixture": true,
+      "blurb": "Recorded output for the spec-only condition: plausible coverage, some redundancy, subtle paths missed, and two checks that assert behaviour the spec does not actually promise.",
+      "expectation": "Reads as competent. The false positives are the interesting part.",
+      "producedOn": "2026-08-04",
+      "spec": true,
+      "code": false,
+      "tools": false,
+      "method": "Authored once as a fixture representing the spec-only condition: written from the prose specification with no access to the target source and no ability to run anything.",
+      "caveat": "Committed fixture. This suite is a Python file in this repository, authored once and checked in. Buggy does not call any model at run time, needs no API key, and never regenerates a suite live. Live generation is an unbuilt future phase."
+    },
+    {
+      "id": "llm_tooled",
+      "name": "LLM, code and tools",
+      "authorKind": "llm-recorded",
+      "recordedFixture": true,
+      "blurb": "Recorded output for the code-reading condition: exact expected values, real boundary probes, stateful sequences. Still blind to three defects the expert suite finds.",
+      "expectation": "The honest question: how much of the gap does tool access actually close?",
+      "producedOn": "2026-08-04",
+      "spec": true,
+      "code": true,
+      "tools": true,
+      "method": "Authored once as a fixture representing the code-reading condition: written with the target source visible and the freedom to execute it while drafting.",
+      "caveat": "Committed fixture. This suite is a Python file in this repository, authored once and checked in. Buggy does not call any model at run time, needs no API key, and never regenerates a suite live. Live generation is an unbuilt future phase."
+    }
+  ],
+  "scores": [
+    {
+      "suite": "expert",
+      "nChecks": 24,
+      "detected": 16,
+      "nDefects": 17,
+      "recall": 0.941,
+      "precision": 1,
+      "fpChecks": 0,
+      "fpResults": 0,
+      "mttdMs": 0.18,
+      "runtimeMs": 6.5,
+      "minimal": 15
+    },
+    {
+      "suite": "llm_tooled",
+      "nChecks": 20,
+      "detected": 13,
+      "nDefects": 17,
+      "recall": 0.765,
+      "precision": 1,
+      "fpChecks": 0,
+      "fpResults": 0,
+      "mttdMs": 0.09,
+      "runtimeMs": 4.7,
+      "minimal": 13
+    },
+    {
+      "suite": "llm_naive",
+      "nChecks": 17,
+      "detected": 7,
+      "nDefects": 17,
+      "recall": 0.412,
+      "precision": 0.17,
+      "fpChecks": 2,
+      "fpResults": 35,
+      "mttdMs": 0.08,
+      "runtimeMs": 3,
+      "minimal": 7
+    },
+    {
+      "suite": "checklist",
+      "nChecks": 11,
+      "detected": 2,
+      "nDefects": 17,
+      "recall": 0.118,
+      "precision": 1,
+      "fpChecks": 0,
+      "fpResults": 0,
+      "mttdMs": 0.06,
+      "runtimeMs": 2.1,
+      "minimal": 2
+    }
+  ],
+  "hits": {
+    "CHK-001": [
+      "expert",
+      "llm_naive",
+      "llm_tooled"
+    ],
+    "CHK-002": [
+      "expert",
+      "llm_tooled"
+    ],
+    "CHK-003": [],
+    "CHK-004": [
+      "expert",
+      "llm_tooled"
+    ],
+    "CHK-005": [
+      "expert",
+      "checklist",
+      "llm_naive",
+      "llm_tooled"
+    ],
+    "CHK-006": [
+      "expert",
+      "llm_naive",
+      "llm_tooled"
+    ],
+    "AUT-001": [
+      "expert",
+      "llm_tooled"
+    ],
+    "AUT-002": [
+      "expert",
+      "llm_tooled"
+    ],
+    "AUT-003": [
+      "expert"
+    ],
+    "AUT-004": [
+      "expert",
+      "llm_tooled"
+    ],
+    "AUT-005": [
+      "expert",
+      "llm_naive",
+      "llm_tooled"
+    ],
+    "AUT-006": [
+      "expert",
+      "llm_naive",
+      "llm_tooled"
+    ],
+    "LED-001": [
+      "expert",
+      "checklist",
+      "llm_naive",
+      "llm_tooled"
+    ],
+    "LED-002": [
+      "expert",
+      "llm_tooled"
+    ],
+    "LED-003": [
+      "expert",
+      "llm_tooled"
+    ],
+    "LED-004": [
+      "expert"
+    ],
+    "LED-005": [
+      "expert",
+      "llm_naive"
+    ]
+  },
+  "expertChecks": [
+    {
+      "id": "EXP-CHK-01",
+      "target": "checkout",
+      "title": "Plain cart prices to the exact expected total",
+      "intent": "Anchor the whole pricing pipeline on one exact value."
+    },
+    {
+      "id": "EXP-CHK-02",
+      "target": "checkout",
+      "title": "Quantity tier includes its lower boundary (qty 3)",
+      "intent": "A tier advertised as 'from 3' must apply at exactly 3."
+    },
+    {
+      "id": "EXP-CHK-03",
+      "target": "checkout",
+      "title": "Quantity tiers include their boundaries at 6 and 12",
+      "intent": "The same off-by-one can be seeded at any tier, so probe all of them."
+    },
+    {
+      "id": "EXP-CHK-04",
+      "target": "checkout",
+      "title": "Free shipping applies at exactly the threshold",
+      "intent": "'Free over 50' has to mean free AT 50; this is the classic inclusive-bound bug."
+    },
+    {
+      "id": "EXP-CHK-05",
+      "target": "checkout",
+      "title": "Shipping is charged just below and free just above the threshold",
+      "intent": "Pin the other side of the boundary so a fix cannot overshoot."
+    },
+    {
+      "id": "EXP-CHK-06",
+      "target": "checkout",
+      "title": "Promo percentage applies to goods, never to shipping",
+      "intent": "A discount code must not quietly discount delivery."
+    },
+    {
+      "id": "EXP-CHK-07",
+      "target": "checkout",
+      "title": "VAT falls when a promo is applied",
+      "intent": "Tax is owed on what was actually charged, not on the pre-discount subtotal."
+    },
+    {
+      "id": "EXP-CHK-08",
+      "target": "checkout",
+      "title": "Non-positive quantities are rejected",
+      "intent": "A missing validation guard is invisible unless something invalid is sent."
+    },
+    {
+      "id": "EXP-CHK-09",
+      "target": "checkout",
+      "title": "Invariant: goods equals the sum of line nets",
+      "intent": "Structural invariant that must hold for every cart, defect or not."
+    },
+    {
+      "id": "EXP-CHK-10",
+      "target": "checkout",
+      "title": "An unknown promo code is a no-op",
+      "intent": "Unrecognised codes must not error and must not discount."
+    },
+    {
+      "id": "EXP-AUT-01",
+      "target": "authn",
+      "title": "Issue and verify round-trips the claims",
+      "intent": "Baseline: the happy path works and the claims survive."
+    },
+    {
+      "id": "EXP-AUT-02",
+      "target": "authn",
+      "title": "A token is rejected one second past expiry",
+      "intent": "Expiry must bite at the edge; probing far past expiry proves nothing."
+    },
+    {
+      "id": "EXP-AUT-03",
+      "target": "authn",
+      "title": "A token is still valid at exactly its expiry second",
+      "intent": "Pin the inclusive side of the expiry bound so a fix cannot overshoot."
+    },
+    {
+      "id": "EXP-AUT-04",
+      "target": "authn",
+      "title": "A signature tampered only in its tail is rejected",
+      "intent": "A truncated comparison passes garbage-signature tests but fails this one."
+    },
+    {
+      "id": "EXP-AUT-05",
+      "target": "authn",
+      "title": "A privilege forgery is rejected on every one of 12 attempts",
+      "intent": "Repeat the probe: an intermittently-skipped check is invisible to a single attempt."
+    },
+    {
+      "id": "EXP-AUT-06",
+      "target": "authn",
+      "title": "A role merely containing 'admin' does not bypass scopes",
+      "intent": "Substring role matching is the classic silent authorisation hole."
+    },
+    {
+      "id": "EXP-AUT-07",
+      "target": "authn",
+      "title": "A malformed token raises AuthError, not a falsy return",
+      "intent": "The contract is claims-or-raise; a None return breaks every caller that binds it."
+    },
+    {
+      "id": "EXP-AUT-08",
+      "target": "authn",
+      "title": "Revoking a token by its id stops it verifying",
+      "intent": "Needs two calls with state between them; a single-call test cannot see it."
+    },
+    {
+      "id": "EXP-LED-01",
+      "target": "ledger",
+      "title": "Replaying an idempotency key posts exactly once",
+      "intent": "The retry is the test; posting each fixture once can never see a broken key."
+    },
+    {
+      "id": "EXP-LED-02",
+      "target": "ledger",
+      "title": "A small unbalanced entry is refused",
+      "intent": "Invariants get bypassed for 'cheap' rows; probe under the cheap threshold."
+    },
+    {
+      "id": "EXP-LED-03",
+      "target": "ledger",
+      "title": "A large unbalanced entry is refused",
+      "intent": "The other side of the size threshold, so a fix cannot pass by narrowing it."
+    },
+    {
+      "id": "EXP-LED-04",
+      "target": "ledger",
+      "title": "Adjacent pages are disjoint and contiguous",
+      "intent": "A page-edge defect is only visible when two pages are compared to each other."
+    },
+    {
+      "id": "EXP-LED-05",
+      "target": "ledger",
+      "title": "An account balance is scoped to one currency",
+      "intent": "Mixed-currency ledgers are where a missing filter becomes a wrong number."
+    },
+    {
+      "id": "EXP-LED-06",
+      "target": "ledger",
+      "title": "An unfiltered listing is still scoped to the caller's tenant",
+      "intent": "Tenant leaks hide on the default path, which is the path nobody filters."
+    }
+  ],
+  "expertFirst": {
+    "CHK-001": "EXP-CHK-06",
+    "CHK-002": "EXP-CHK-02",
+    "CHK-004": "EXP-CHK-04",
+    "CHK-005": "EXP-CHK-07",
+    "CHK-006": "EXP-CHK-08",
+    "AUT-001": "EXP-AUT-02",
+    "AUT-002": "EXP-AUT-04",
+    "AUT-003": "EXP-AUT-06",
+    "AUT-004": "EXP-AUT-07",
+    "AUT-005": "EXP-AUT-08",
+    "AUT-006": "EXP-AUT-05",
+    "LED-001": "EXP-LED-01",
+    "LED-002": "EXP-LED-02",
+    "LED-003": "EXP-LED-04",
+    "LED-004": "EXP-LED-05",
+    "LED-005": "EXP-LED-06"
+  },
+  "expertKeep": [
+    "EXP-CHK-02",
+    "EXP-CHK-04",
+    "EXP-CHK-06",
+    "EXP-CHK-07",
+    "EXP-CHK-08",
+    "EXP-AUT-02",
+    "EXP-AUT-04",
+    "EXP-AUT-05",
+    "EXP-AUT-06",
+    "EXP-AUT-07",
+    "EXP-AUT-08",
+    "EXP-LED-01",
+    "EXP-LED-02",
+    "EXP-LED-04",
+    "EXP-LED-05"
+  ],
+  "replay": [
+    {
+      "id": "EXP-CHK-04",
+      "passed": false,
+      "us": 41,
+      "title": "Free shipping applies at exactly the threshold",
+      "steps": [
+        [
+          "step",
+          "price 2 x 25.00 - goods land on exactly 50.00"
+        ],
+        [
+          "ok",
+          "goods exactly 50.00, got 50.00"
+        ],
+        [
+          "fail",
+          "shipping free at the threshold, got 4.99"
+        ]
+      ],
+      "detail": "shipping free at the threshold, got 4.99"
+    },
+    {
+      "id": "EXP-CHK-05",
+      "passed": true,
+      "us": 63,
+      "title": "Shipping is charged just below and free just above the threshold",
+      "steps": [
+        [
+          "step",
+          "goods 49.98 - one line of 2 x 24.99"
+        ],
+        [
+          "ok",
+          "shipping charged below threshold, got 4.99"
+        ],
+        [
+          "step",
+          "goods 50.02 - one line of 2 x 25.01"
+        ],
+        [
+          "ok",
+          "shipping free above threshold, got 0.00"
+        ]
+      ],
+      "detail": "all assertions held"
+    },
+    {
+      "id": "EXP-CHK-01",
+      "passed": true,
+      "us": 34,
+      "title": "Plain cart prices to the exact expected total",
+      "steps": [
+        [
+          "step",
+          "price 5 x 2.00, no promo"
+        ],
+        [
+          "ok",
+          "goods 9.50 after the 5% tier, got 9.50"
+        ],
+        [
+          "ok",
+          "shipping 4.99 below threshold, got 4.99"
+        ],
+        [
+          "ok",
+          "total 17.39, got 17.39"
+        ]
+      ],
+      "detail": "all assertions held"
+    },
+    {
+      "id": "EXP-CHK-09",
+      "passed": true,
+      "us": 78,
+      "title": "Invariant: goods equals the sum of line nets",
+      "steps": [
+        [
+          "step",
+          "price a three-line cart spanning all three tiers"
+        ],
+        [
+          "ok",
+          "line nets 133.87 vs goods 133.87"
+        ],
+        [
+          "ok",
+          "a discount can never exceed goods"
+        ]
+      ],
+      "detail": "all assertions held"
+    }
+  ],
+  "run": {
+    "id": 1,
+    "seed": 20260804,
+    "kind": "benchmark",
+    "createdAt": "2026-08-04 09:12",
+    "label": "Seeded benchmark: 4 suites against 17 defects",
+    "nBuilds": 18,
+    "nResults": 1296,
+    "nChecks": 72,
+    "durationMs": 33,
+    "repeats": 5
+  },
+  "ndId": "AUT-006",
+  "suiteOrder": [
+    "expert",
+    "checklist",
+    "llm_naive",
+    "llm_tooled"
+  ]
+}

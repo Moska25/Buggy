@@ -1,99 +1,103 @@
 {% extends "_layout.html" %}
+{% import "_bits.html" as bits %}
 {% block title %}{{ defect.id if defect else 'Not found' }}{% endblock %}
 {% block content %}
 
 {% if not defect %}
-  <div class="page-head"><h1>Unknown defect</h1>
-    <p class="lede">No seeded defect carries that id.</p></div>
+<section class="wrap" style="padding-top: 52px;">
+  <h1 class="page-title">Unknown defect</h1>
+  <p class="lede">No planted defect carries that id.</p>
+</section>
+<section class="wrap section-tight">
   <div class="empty">Back to the <a href="/defects">defect catalog</a>.</div>
+</section>
 {% else %}
 
-<div class="page-head">
-  <h1>{{ defect.id }}</h1>
-  <p class="defect-title">{{ defect.title }}</p>
+<section class="wrap" style="max-width: 980px; padding-top: 52px;">
+  <a href="/defects" style="font-size: 14px;">&larr; all defects</a>
+  <div class="row" style="gap: 8px; margin: 20px 0 16px;">
+    <span class="tag tag-neutral">{{ defect.category }}</span>
+    <span class="{{ bits.sev_tag(defect.severity) | trim }}">{{ defect.severity }}</span>
+    <span class="tag tag-outline">target: {{ defect.target }}</span>
+    {% if defect.id == nd_id %}<span class="tag tag-accent">nondeterministic</span>{% endif %}
+  </div>
+  <h6 class="kicker" style="margin-bottom: 8px;">{{ defect.id }}</h6>
+  <h1 class="page-title">{{ defect.title }}</h1>
   <p class="lede">{{ defect.description }}</p>
-</div>
 
-<div class="row">
-  <span class="pill pill-idle">{{ defect.category }}</span>
-  <span class="pill {{ defect.severity_pill }}">{{ defect.severity }}</span>
-  <span class="pill pill-accent pill-plain">target: {{ defect.target }}</span>
-  {% if defect.id == nd_id %}<span class="pill pill-warn">nondeterministic</span>{% endif %}
-</div>
+  {% if rows %}
+  {% set n_suites = rows | length %}
+  <div class="strip {{ 'bad' if caught == 0 else ('good' if caught == n_suites else '') }}" style="margin-top: 30px;">
+    <span class="strip-count num">{{ caught }}/{{ n_suites }}</span>
+    <span class="strip-what">
+      {% if caught == 0 %}<b>It survived every suite in this run</b>, including the expert one. This
+        is the defect that would have shipped.
+      {% elif caught == n_suites %}<b>Every suite caught it.</b> The probe that exposes it is one any
+        of these suites already constructs.
+      {% else %}<b>{{ caught }} of {{ n_suites }} suites caught it.</b> The other
+        {{ n_suites - caught }} never constructed the input described below.
+      {% endif %}
+    </span>
+  </div>
+  {% endif %}
+</section>
 
-{% if rows %}
-{% set n_suites = rows | length %}
-{% set missed = n_suites - caught %}
-<div class="verdict-strip {{ 'is-fail' if caught == 0 else ('is-warn' if caught == 1 else 'is-pass') }}">
-  <span class="verdict-strip-count">{{ caught }}/{{ n_suites }}</span>
-  <span class="verdict-strip-what">
-    {% if caught == 0 %}<b>It survived every suite in this run</b>, including the expert one. This is
-      the defect that would have shipped.
-    {% elif caught == n_suites %}<b>Every suite caught it.</b> The probe that exposes it is one any
-      of these suites already constructs.
-    {% else %}<b>{{ caught }} of {{ n_suites }} suites caught it.</b> The other
-      {{ missed }} never constructed the input described below.
-    {% endif %}
-  </span>
-</div>
-{% endif %}
+<section class="wrap section-tight reveal" style="max-width: 980px;">
+  <h2 class="h-section" style="font-size: 30px; margin-bottom: 14px;">The probe you would need</h2>
+  <div class="panel panel-accent" style="border-radius: 28px; padding: 26px 30px; font-size: 16px; line-height: 1.55;">{{ defect.hint }}</div>
+</section>
 
-<div class="section">
-  <div class="section-head"><h2>The probe you would need</h2></div>
-  <div class="note">{{ defect.hint }}</div>
-</div>
-
-<div class="section">
-  <div class="section-head"><h2>Which suites caught it</h2>
-    {% if data %}<span class="faint small mono">run #{{ data.run.id }}</span>{% endif %}</div>
+<section class="wrap section-tight reveal" style="max-width: 980px;">
+  <h2 class="h-section" style="font-size: 30px; margin-bottom: 14px;">Which suites caught it</h2>
   {% if not rows %}
     <div class="empty">No stored run has been executed against this defect yet.</div>
   {% else %}
-  <div class="card card-tight"><div class="table-wrap">
-    <table class="data">
+  <div class="tablewrap">
+    <table class="table" style="min-width: 620px;">
       <thead><tr><th>Suite</th><th>Result</th><th>First detecting check</th>
-        <th class="num">Detecting checks</th><th class="num">Time to detect</th></tr></thead>
+        <th class="right">Time to detect</th></tr></thead>
       <tbody>
       {% for r in rows %}
         {% set chk = find_check(r.first_check_id) %}
         <tr>
           <td><a href="/suites/{{ r.suite }}">{{ suite_by_id[r.suite].name }}</a></td>
-          <td>{% if r.detected %}<span class="pill pill-pass">caught</span>
-              {% else %}<span class="pill pill-fail">missed</span>{% endif %}</td>
-          <td>{% if chk %}<span class="mono">{{ chk.id }}</span><br>
-                <span class="faint small">{{ chk.title }}</span>
-              {% else %}<span class="faint">-</span>{% endif %}</td>
-          <td class="num">{{ r.n_detecting }}</td>
-          <td class="num">{% if r.detected %}{{ '%.2f' % r.ms }} ms{% else %}<span class="faint">-</span>{% endif %}</td>
+          <td>{{ bits.result_tag(r.detected) }}</td>
+          <td>{% if chk %}<span class="mono">{{ chk.id }}</span>
+                <div class="muted" style="font-size: 12.5px;">{{ chk.title }}</div>
+              {% else %}<span class="muted">—</span>{% endif %}</td>
+          <td class="right num">{% if r.detected %}{{ '%.2f' % r.ms }} ms{% else %}<span class="muted">—</span>{% endif %}</td>
         </tr>
       {% endfor %}
       </tbody>
     </table>
-  </div></div>
+  </div>
+  {% if data %}<p class="muted" style="font-size: 13px; margin-top: 14px;">Read from run #{{ data.run.id }}.</p>{% endif %}
   {% endif %}
-</div>
+</section>
 
 {% if defect.id == nd_id %}
-<div class="note note-warn">
-  <strong>This is the only nondeterministic defect.</strong> It reads from a generator the runner
-  reseeds per execution, so a run is reproducible from its seed while individual repeats genuinely
-  differ. That is what makes the flake column on <a href="/benchmark">the benchmark</a> a measurement
-  rather than a constant - and it is why a suite that probes a forgery once is itself flaky.
-</div>
+<section class="wrap section-tight reveal" style="max-width: 980px;">
+  <div class="panel panel-accent">
+    <strong>This is the only nondeterministic defect.</strong> It reads from a generator the runner
+    reseeds per execution, so a run is reproducible from its seed while individual repeats genuinely
+    differ. That is what makes the flake column on <a href="/benchmark">the benchmark</a> a
+    measurement rather than a constant — and it is why a suite that probes a forgery once is itself flaky.
+  </div>
+</section>
 {% endif %}
 
-<div class="section">
-  <div class="section-head"><h2>How it is seeded</h2></div>
-  <div class="card">
-    <p>The defect lives in <code>app/targets/{{ defect.target }}.py</code> as a branch on the active
-    defect set. The runner builds one variant with exactly <code>{{ defect.id }}</code> active and
-    nothing else, so a detection can only be attributed to this defect.</p>
-    <pre><code>if "{{ defect.id }}" in active:
-    ...  # the seeded behaviour</code></pre>
-    <p class="small faint">Back to <a href="/defects">the catalog</a> or
-    <a href="/lab">run this defect on its own in the lab</a>.</p>
+<section class="wrap section-tight reveal" style="max-width: 980px;">
+  <h2 class="h-section" style="font-size: 30px; margin-bottom: 14px;">How it is planted</h2>
+  <div class="panel">
+    <p style="font-size: 15.5px; color: color-mix(in srgb, var(--color-text) 78%, transparent);">
+      It lives in <span class="mono">app/targets/{{ defect.target }}.py</span> as a branch on the
+      active defect set. The runner builds one variant with exactly {{ defect.id }} switched on and
+      nothing else, so a detection can only be attributed to this defect.</p>
+    <pre class="code">if "{{ defect.id }}" in active:
+    ...  # the planted behaviour</pre>
+    <p style="font-size: 14px; margin: 16px 0 0;"><a href="/lab">Run this defect on its own in the lab →</a></p>
   </div>
-</div>
+</section>
 
 {% endif %}
 {% endblock %}

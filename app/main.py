@@ -10,7 +10,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import db, minimise, runner
+from . import db, minimise, runner, wheel as wheelgeom
 from .defects import BY_ID as DEFECT_BY_ID
 from .defects import CATEGORIES, DEFECTS, NONDETERMINISTIC_ID, TARGETS, category_counts
 from .suites import BY_ID as SUITE_BY_ID
@@ -90,6 +90,7 @@ def index(request: Request):
         request,
         "index.html",
         page(request, "/", data=data, head=headline(data) if data else None,
+             wheel=wheelgeom.build(data, DEFECT_BY_ID, SUITE_BY_ID),
              defects=DEFECTS, suites=SUITES, categories=category_counts(), targets=TARGETS),
     )
 
@@ -101,7 +102,8 @@ def benchmark(request: Request, run: int | None = None):
     return templates.TemplateResponse(
         request,
         "benchmark.html",
-        page(request, "/benchmark", data=data, head=headline(data) if data else None),
+        page(request, "/benchmark", data=data, head=headline(data) if data else None,
+             wheel=wheelgeom.build(data, DEFECT_BY_ID, SUITE_BY_ID, link=True)),
     )
 
 

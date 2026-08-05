@@ -10,3 +10,10 @@ data/cache/
 # designer session, never shipped. docs/screenshots and docs/bench-baseline.json
 # stay tracked: the README and the CI workflow reference them.
 ui-kit/
+
+# Next.js port
+web/node_modules/
+web/.next/
+web/out/
+.vercel/
+web/.env.local

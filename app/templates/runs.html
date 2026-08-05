@@ -2,41 +2,44 @@
 {% block title %}Runs{% endblock %}
 {% block content %}
 
-<div class="page-head">
-  <h1>Run history</h1>
-  <p class="lede">Every benchmark and lab run is persisted with its per-check results and step logs,
-  so any run can be replayed exactly as it was computed rather than recomputed. The amber rule marks
-  the seeded benchmark runs; everything else came from <a href="/lab">the lab</a> or the test suite.</p>
-</div>
+<section class="wrap" style="padding-top: 52px;">
+  <h6 class="kicker">History</h6>
+  <h1 class="page-title">Every run is kept</h1>
+  <p class="lede">
+    Each benchmark and lab run is stored with its per-check results and step logs, so any run replays
+    exactly as it was computed rather than being recomputed. Runs marked <em>benchmark</em> are the
+    seeded ones everything else is compared against.
+  </p>
+</section>
 
+<section class="wrap section-tight reveal">
 {% if not runs %}
   <div class="empty">No runs stored yet. Run <code>python -m app.seed</code>, or execute one from
     <a href="/lab">the lab</a>.</div>
 {% else %}
-<div class="card card-tight"><div class="table-wrap">
-  <table class="data">
-    <thead><tr><th>Run</th><th>Kind</th><th>Created</th><th class="num">Seed</th>
-      <th class="num">Builds</th><th class="num">Checks</th><th class="num">Results</th>
-      <th class="num">Best recall</th><th class="num">Duration</th></tr></thead>
-    <tbody>
-    {% for r in runs %}
-      <tr{{ ' class="is-benchmark"' | safe if r.kind == 'benchmark' }}>
-        <td class="mono"><a href="/runs/{{ r.id }}">#{{ r.id }}</a>
-          <span class="faint small">{{ r.label }}</span></td>
-        <td>{% if r.kind == 'benchmark' %}<span class="pill pill-accent">benchmark</span>
-            {% else %}<span class="pill pill-idle">lab</span>{% endif %}</td>
-        <td class="mono small" title="{{ r.created_at }}">{{ r.created_at[:16] | replace('T', ' ') }}</td>
-        <td class="num">{{ r.seed }}</td>
-        <td class="num">{{ r.n_builds }}</td>
-        <td class="num">{{ r.n_checks }}</td>
-        <td class="num">{{ r.n_results }}</td>
-        <td class="num">{{ '%.1f' % (r.best_recall * 100) if r.best_recall is not none else '-' }}%</td>
-        <td class="num">{{ '%.0f' % r.duration_ms }} ms</td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-</div></div>
+  <div class="tablewrap">
+    <table class="table num" style="min-width: 820px;">
+      <thead><tr><th>Run</th><th>Kind</th><th>Created</th><th>Seed</th><th>Builds</th><th>Checks</th>
+        <th>Results</th><th>Best recall</th><th class="right">Duration</th></tr></thead>
+      <tbody>
+      {% for r in runs %}
+        <tr>
+          <td><a href="/runs/{{ r.id }}" class="mono">#{{ r.id }}</a>
+            <div class="muted" style="font-size: 12.5px;">{{ r.label }}</div></td>
+          <td><span class="tag {{ 'tag-accent' if r.kind == 'benchmark' else 'tag-neutral' }}">{{ r.kind }}</span></td>
+          <td title="{{ r.created_at }}">{{ r.created_at[:16] | replace('T', ' ') }}</td>
+          <td>{{ r.seed }}</td>
+          <td>{{ r.n_builds }}</td>
+          <td>{{ r.n_checks }}</td>
+          <td>{{ r.n_results }}</td>
+          <td class="is-caught" style="font-weight: 700;">{{ ('%.1f' % (r.best_recall * 100)) ~ '%' if r.best_recall is not none else '—' }}</td>
+          <td class="right">{{ '%.0f' % r.duration_ms }} ms</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
 {% endif %}
+</section>
 
 {% endblock %}

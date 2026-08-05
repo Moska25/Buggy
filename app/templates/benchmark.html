@@ -3,146 +3,170 @@
 {% block title %}Benchmark{% endblock %}
 {% block content %}
 
-<div class="page-head">
-  <h1>Detection matrix</h1>
-  <p class="lede">One row per seeded defect, one column per suite. A cell is a hit only when that
-  suite failed on the defect's build <em>and</em> passed on the clean build.</p>
-</div>
-
 {% if not data %}
+<section class="wrap" style="padding-top: 52px;">
+  <h6 class="kicker">Benchmark</h6>
+  <h1 class="page-title">Who caught what</h1>
+</section>
+<section class="wrap section-tight">
   <div class="empty">No benchmark run stored yet. Run <code>python -m app.seed</code> to populate one.</div>
+</section>
 {% else %}
 
-{{ bits.statusline(data.run.id, data.run.seed, data.run.n_builds, data.run.n_results,
-                   data.run.duration_ms, '/runs/' ~ data.run.id) }}
+<section class="wrap" style="padding-top: 52px;">
+  <h6 class="kicker">Benchmark · run #{{ data.run.id }} · seed {{ data.run.seed }}</h6>
+  <h1 class="page-title">Who caught what</h1>
+  <p class="lede">
+    Every defect gets its own build with exactly that defect switched on, plus one clean build. A
+    check that fails on the clean build is a false alarm: it earns no credit anywhere, however many
+    broken builds it also fails on. Without that rule a suite could top this page by asserting nonsense.
+  </p>
+  <div style="margin-top: 22px;">
+    {{ bits.statusline(data.run.id, data.run.seed, data.run.n_builds, data.run.n_results,
+                       data.run.duration_ms, '/runs/' ~ data.run.id) }}
+  </div>
+</section>
 
-<div class="note">
-  <strong>How a hit is earned.</strong> Every defect gets its own build with exactly that defect
-  active. A check that fails on the clean build is a false positive: it is excluded from detection
-  credit entirely, however many defective builds it also fails on. Without that rule a suite could
-  top this table by asserting nonsense.
-</div>
-
-<div class="section" id="scoreboard">
-  <div class="section-head"><h2>Scoreboard</h2>
-    <span class="faint small mono">ranked by recall, then precision</span></div>
-  <div class="card card-tight">
-    <ol class="board">
+<section class="wrap section-tight reveal" id="scoreboard">
+  <h2 class="h-section" style="font-size: 34px;">Scoreboard</h2>
+  <div class="stack">
     {% for s in data.scores %}
       {% set suite = suite_by_id[s.suite] %}
-      <li class="{{ 'is-noisy' if s.fp_results else '' }}">
-        <div class="board-rank">{{ '%02d' % loop.index }}</div>
-        <div class="board-id">
-          <div class="board-name"><a href="/suites/{{ s.suite }}">{{ suite.name }}</a></div>
-          <div class="board-sub">{{ suite.provenance.author_kind }} ·
-            {{ s.n_checks }} checks ·
-            {% if suite.provenance.recorded_fixture %}recorded fixture{% else %}live source{% endif %}</div>
+      <article class="score {{ 'noisy' if s.fp_results }}">
+        <div class="score-head">
+          <span class="rank num {{ 'lead' if loop.first }}">{{ '%02d' % loop.index }}</span>
+
+          <div class="score-name">
+            <a href="/suites/{{ s.suite }}">{{ suite.name }}</a>
+            <div class="muted" style="font-size: 13px; margin-top: 3px;">
+              {{ suite.provenance.author_kind }} · {{ s.n_checks }} checks ·
+              {{ 'recorded fixture' if suite.provenance.recorded_fixture else 'live source' }}</div>
+          </div>
+
+          <div class="score-col">
+            <div class="label">Recall</div>
+            <div class="figure num {{ bits.figure_class(s.recall) | trim }}" style="font-size: 38px;">{{ '%.1f' % (s.recall * 100) }}%</div>
+            <div style="margin-top: 6px;">{{ bits.meter(s.recall) }}</div>
+            <div class="muted" style="font-size: 12px; margin-top: 6px;">{{ s.detected }} of {{ s.n_defects }} defects found</div>
+          </div>
+
+          <div class="score-col" style="min-width: 120px;">
+            <div class="label">Precision</div>
+            <div class="figure figure-sm num {{ bits.figure_class(s.precision, 0.9, 0.5) | trim }}">{{ '%.2f' % s.precision }}</div>
+            <div class="muted" style="font-size: 12px; margin-top: 4px;">of its failures were real</div>
+          </div>
+
+          <div class="score-fp {{ 'noise' if s.fp_results }}">
+            <div class="label" style="color: inherit; opacity: 0.75;">False alarms</div>
+            <div class="figure figure-sm num">{{ s.fp_results }}</div>
+            <div style="font-size: 12px; margin-top: 4px; opacity: 0.8;">
+              {% if s.fp_results %}bogus reports from {{ s.fp_checks }}
+                check{{ 's' if s.fp_checks != 1 }} that fail on clean
+              {% else %}nothing failed on the clean build{% endif %}</div>
+          </div>
         </div>
 
-        <div class="board-stats">
-          <span>mean ttd <b>{{ '%.2f' % s.mttd_ms }} ms</b></span>
-          <span>runtime <b>{{ '%.1f' % s.runtime_ms }} ms</b></span>
-          <span>fp checks <b>{{ s.fp_checks }}</b></span>
-          <span>flake <b>{% if s.nd_repeats %}{{ '%.2f' % s.flake_rate }}{% else %}n/a{% endif %}</b></span>
+        <div class="score-foot num">
+          <span>mean time to detect {{ '%.2f' % s.mttd_ms }} ms</span>
+          <span>runtime {{ '%.1f' % s.runtime_ms }} ms</span>
+          <span>checks failing on clean {{ s.fp_checks }}</span>
+          <span>flake {% if s.nd_repeats %}{{ '%.2f' % s.flake_rate }}{% else %}n/a{% endif %}</span>
         </div>
-
-        <div class="board-fig">
-          <div class="board-label">Recall</div>
-          <div class="board-hero is-{{ bits.band(s.recall) }}">{{ '%.1f' % (s.recall * 100) }}%</div>
-          <div class="bar bar-{{ bits.band(s.recall) }}"><span style="width: {{ '%.0f' % (s.recall * 100) }}%"></span></div>
-          <div class="board-note">{{ s.detected }}/{{ s.n_defects }} defects found</div>
-        </div>
-
-        <div class="board-fig">
-          <div class="board-label">Precision</div>
-          <div class="board-hero sm is-{{ bits.band(s.precision, 0.9, 0.5) }}">{{ '%.2f' % s.precision }}</div>
-          <div class="bar bar-{{ bits.band(s.precision, 0.9, 0.5) }}"><span style="width: {{ '%.0f' % (s.precision * 100) }}%"></span></div>
-          <div class="board-note">of its failures were real</div>
-        </div>
-
-        <div class="board-fp {{ 'is-noise' if s.fp_results else '' }}">
-          <div class="board-label">False positives</div>
-          <div class="board-fp-value">{{ s.fp_results }}</div>
-          <div class="board-note">{% if s.fp_results %}bogus failure reports from
-            {{ s.fp_checks }} check{{ 's' if s.fp_checks != 1 }} that fail on the clean build{%
-            else %}nothing failed on the clean build{% endif %}</div>
-        </div>
-      </li>
+      </article>
     {% endfor %}
-    </ol>
   </div>
-</div>
+</section>
 
-<div class="section" id="matrix">
-  <div class="section-head">
-    <h2>Matrix</h2>
-    <span class="faint small mono">{{ data.defect_ids | length }} defects x {{ data.suite_ids | length }} suites</span>
-  </div>
-  <div class="card card-tight matrix-card"><div class="card-body"><div class="table-wrap">
-    <table class="matrix">
-      <thead>
-        <tr>
-          <th class="rot">Defect</th>
-          {% for sid in data.suite_ids %}<th>{{ suite_by_id[sid].name }}</th>{% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-      {% for did in data.defect_ids %}
-        {% set defect = defect_by_id[did] %}
-        <tr>
-          <th class="rot"><a href="/defects/{{ did }}">{{ did }}</a>
-            <span class="faint small">{{ defect.category }}</span>
-            <span class="m-title">{{ defect.title }}</span></th>
-          {% for sid in data.suite_ids %}
-            {% set info = data.detections.get((sid, did)) %}
-            {% if info and info.detected %}
-              <td class="hit" title="{{ suite_by_id[sid].name }} caught {{ did }} via {{ info.first_check_id }} after {{ '%.2f' % info.ms }} ms ({{ info.n_detecting }} check(s) detected it)">
-                <a href="/defects/{{ did }}">+</a></td>
-            {% else %}
-              <td class="miss" title="{{ suite_by_id[sid].name }} did not catch {{ did }}: {{ defect.hint }}">
-                <a href="/defects/{{ did }}">·</a></td>
-            {% endif %}
-          {% endfor %}
-        </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  <div class="legend">
-    <span><i class="led-hit">+</i> lit / caught: failed on this defect's build, passed on the clean build</span>
-    <span><i class="led-miss">·</i> recessed / missed: the defect survived this suite</span>
-  </div>
-  <p class="small faint hint">Hover a cell for the detecting check and its
-  time-to-detect, or the probe that would have been needed. Click through for the full defect record.</p>
-  </div></div>
-</div>
-
-<div class="section">
-  <div class="section-head"><h2>What these columns mean, and what they do not</h2></div>
-  <div class="grid grid-2">
-    <div class="card">
-      <h3>Recall and precision</h3>
-      <p><span class="mono">recall = defects with at least one detecting check / defects seeded</span>.
-      <span class="mono">precision = failing results that are true detections / all failing results</span>.
-      A check that fails on the clean build fails on nearly every build too, so it produces many
-      spurious failures and correctly drags precision down.</p>
-      <p><strong>FP checks</strong> counts checks failing on the clean build. <strong>False
-      positives</strong> on the scoreboard counts the individual bogus failure reports they generate
-      across the whole matrix - the number a human would actually have to triage.</p>
+<section class="wrap section reveal" id="matrix">
+  <div class="row" style="align-items: flex-end; margin-bottom: 22px; gap: 16px;">
+    <div style="flex: 1 1 320px;">
+      <h2 class="h-section" style="font-size: 34px; margin-bottom: 6px;">The board</h2>
+      <p class="muted" style="margin: 0;">{{ data.defect_ids | length }} defects against
+        {{ data.suite_ids | length }} suites. Filled means caught; hollow means it walked past.</p>
     </div>
-    <div class="card">
-      <h3>Mean time-to-detect and flake</h3>
-      <p><strong>Mean TTD</strong> runs each suite in registration order and accumulates check
-      duration until the first detecting check fires. It is in-process cost only. It is <em>not</em> a
-      CI wall-clock estimate: there is no process start, no import, no fixture setup, no I/O.</p>
-      <p><strong>Flake</strong> is the share of a suite's checks whose pass/fail outcome was not
-      unanimous across {{ data.run.repeats or 0 }} repeats of the
-      <a href="/defects/{{ nd_id }}">{{ nd_id }}</a> build, the only nondeterministic defect.
-      {{ data.run.repeats or 0 }} repeats is a coarse estimator - a reading of 0.00 means "nothing
-      wobbled in {{ data.run.repeats or 0 }} tries", not "this suite is stable".</p>
+    <div class="switch" data-switch role="group" aria-label="Board view">
+      <button type="button" data-view="wheel" aria-pressed="true">Wheel</button>
+      <button type="button" data-view="grid" aria-pressed="false">Grid</button>
     </div>
   </div>
-</div>
+
+  {% if wheel %}
+  <div class="panel panel-lg" data-board="wheel">
+    <div class="wheel">
+      {{ bits.catch_wheel(wheel) }}
+      <div>
+        {{ bits.ring_legend(wheel) }}
+        <p class="muted" style="font-size: 13.5px; margin-top: 18px;">
+          Hover any arc to read the defect and the check that caught it; click through for the full
+          record. Rings run best-first from the centre out.
+        </p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div data-board="grid" {{ 'hidden' | safe if wheel }}>
+    <div class="tablewrap">
+      <table class="table" style="min-width: 720px;">
+        <thead><tr>
+          <th style="width: 40%;">Defect</th>
+          {% for sid in data.suite_ids %}<th class="center">{{ suite_by_id[sid].name }}</th>{% endfor %}
+        </tr></thead>
+        <tbody>
+        {% for did in data.defect_ids %}
+          {% set defect = defect_by_id[did] %}
+          <tr>
+            <td>
+              <a href="/defects/{{ did }}" class="mono">{{ did }}</a>
+              <span style="font-size: 11px; margin-left: 8px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-accent-700);">{{ defect.category }}</span>
+              <div class="muted" style="font-size: 13px;">{{ defect.title }}</div>
+            </td>
+            {% for sid in data.suite_ids %}
+              {% set info = data.detections.get((sid, did)) %}
+              {% if info and info.detected %}
+                <td class="center"><span class="pip" title="{{ suite_by_id[sid].name }} caught {{ did }} via {{ info.first_check_id }} after {{ '%.2f' % info.ms }} ms">+</span></td>
+              {% else %}
+                <td class="center"><span class="pip miss" title="{{ suite_by_id[sid].name }} missed {{ did }}: {{ defect.hint }}">·</span></td>
+              {% endif %}
+            {% endfor %}
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {{ bits.board_legend() }}
+</section>
+
+<section class="wrap section reveal">
+  <h2 class="h-section" style="font-size: 34px;">What these numbers are not</h2>
+  <div class="grid-auto" style="grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 18px;">
+    <div class="tile" style="padding: 28px;">
+      <h4 style="margin-bottom: 10px;">Recall and precision</h4>
+      <p style="font-size: 14.5px; color: color-mix(in srgb, var(--color-text) 78%, transparent);">
+        Recall is defects with at least one detecting check over defects planted. Precision is failing
+        results that are real detections over all failing results. A check that fails on the clean
+        build fails on nearly every build, so it produces many spurious failures and correctly drags
+        precision down.</p>
+      <p style="font-size: 14.5px; margin: 0; color: color-mix(in srgb, var(--color-text) 78%, transparent);">
+        "Checks failing on clean" counts the checks. "False alarms" counts the individual bogus
+        reports they generate across the whole board — the number a human would actually have to triage.</p>
+    </div>
+    <div class="tile" style="padding: 28px;">
+      <h4 style="margin-bottom: 10px;">Time to detect and flake</h4>
+      <p style="font-size: 14.5px; color: color-mix(in srgb, var(--color-text) 78%, transparent);">
+        Mean time to detect accumulates in-process check duration until the first detecting check
+        fires. No process start, no imports, no fixture setup, no I/O. It compares suites against each
+        other and is <em>not</em> a CI wall-clock estimate.</p>
+      <p style="font-size: 14.5px; margin: 0; color: color-mix(in srgb, var(--color-text) 78%, transparent);">
+        Flake is the share of a suite's checks whose outcome was not unanimous across
+        {{ data.run.repeats or 0 }} repeats of the <a href="/defects/{{ nd_id }}">{{ nd_id }}</a>
+        build, the only nondeterministic defect. {{ data.run.repeats or 0 }} repeats is coarse: 0.00
+        means "nothing wobbled in {{ data.run.repeats or 0 }} tries", not "this suite is stable".</p>
+    </div>
+  </div>
+</section>
 
 {% endif %}
 {% endblock %}

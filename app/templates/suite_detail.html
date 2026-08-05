@@ -1,140 +1,151 @@
 {% extends "_layout.html" %}
+{% import "_bits.html" as bits %}
 {% block title %}{{ suite.name if suite else 'Not found' }}{% endblock %}
 {% block content %}
 
 {% if not suite %}
-  <div class="page-head"><h1>Unknown suite</h1><p class="lede">No suite carries that id.</p></div>
-  <div class="empty">Back to <a href="/suites">all suites</a>.</div>
+<section class="wrap" style="padding-top: 52px;">
+  <h1 class="page-title">Unknown suite</h1>
+  <p class="lede">No suite carries that id.</p>
+</section>
+<section class="wrap section-tight"><div class="empty">Back to <a href="/suites">all suites</a>.</div></section>
 {% else %}
 
-<div class="page-head">
-  <h1>{{ suite.name }}</h1>
+<section class="wrap" style="padding-top: 52px;">
+  <a href="/suites" style="font-size: 14px;">&larr; all suites</a>
+  <h1 class="page-title" style="margin-top: 18px;">{{ suite.name }}</h1>
   <p class="lede">{{ suite.blurb }}</p>
-</div>
-
-{% if suite.provenance.recorded_fixture %}
-<div class="note note-warn">
-  <strong>Recorded fixture, not a live agent.</strong> {{ suite.provenance.caveat }}
-</div>
-{% endif %}
+  {% if suite.provenance.recorded_fixture %}
+  <div class="panel panel-accent" style="border-radius: 28px; padding: 22px 26px; margin-top: 22px; font-size: 15px;">
+    <strong>Recorded fixture, not a live agent.</strong> {{ suite.provenance.caveat }}
+  </div>
+  {% endif %}
+</section>
 
 {% if score %}
-<div class="grid grid-4">
-  <div class="metric"><div class="metric-label">Recall</div>
-    <div class="metric-value {{ 'is-pass' if score.recall >= 0.75 else ('is-warn' if score.recall >= 0.4 else 'is-fail') }}">{{ '%.1f' % (score.recall * 100) }}%</div>
-    <div class="metric-sub">{{ score.detected }} of {{ score.n_defects }} defects found</div></div>
-  <div class="metric"><div class="metric-label">Precision</div>
-    <div class="metric-value">{{ '%.2f' % score.precision }}</div>
-    <div class="metric-sub">{{ score.fp_results }} of its failures were noise</div></div>
-  <div class="metric"><div class="metric-label">False positives</div>
-    <div class="metric-value {{ 'is-fail' if score.fp_checks else '' }}">{{ score.fp_checks }}</div>
-    <div class="metric-sub">checks that fail on the clean build</div></div>
-  <div class="metric"><div class="metric-label">Flake rate</div>
-    <div class="metric-value {{ 'is-warn' if score.flake_rate else '' }}">{{ '%.2f' % score.flake_rate }}</div>
-    <div class="metric-sub">{{ score.flake_checks }} unstable over {{ score.nd_repeats }} repeats;
-      caught {{ nd_id }} in {{ score.nd_hits }}/{{ score.nd_repeats }}</div></div>
-</div>
+<section class="wrap section-tight reveal">
+  <div class="grid-auto" style="grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 14px;">
+    <div class="tile">
+      <div class="label">Recall</div>
+      <div class="figure num {{ bits.figure_class(score.recall) | trim }}" style="font-size: 38px; margin-top: 8px;">{{ '%.1f' % (score.recall * 100) }}%</div>
+      <div class="muted" style="font-size: 12.5px; margin-top: 6px;">{{ score.detected }} of {{ score.n_defects }} defects found</div>
+    </div>
+    <div class="tile">
+      <div class="label">Precision</div>
+      <div class="figure num {{ bits.figure_class(score.precision, 0.9, 0.5) | trim }}" style="font-size: 38px; margin-top: 8px;">{{ '%.2f' % score.precision }}</div>
+      <div class="muted" style="font-size: 12.5px; margin-top: 6px;">{{ score.fp_results }} of its failures were noise</div>
+    </div>
+    <div class="tile">
+      <div class="label">False alarms</div>
+      <div class="figure num {{ 'is-missed' if score.fp_checks }}" style="font-size: 38px; margin-top: 8px;">{{ score.fp_checks }}</div>
+      <div class="muted" style="font-size: 12.5px; margin-top: 6px;">checks that fail on the clean build</div>
+    </div>
+    <div class="tile">
+      <div class="label">Flake rate</div>
+      <div class="figure num {{ 'is-mid' if score.flake_rate }}" style="font-size: 38px; margin-top: 8px;">{{ '%.2f' % score.flake_rate }}</div>
+      <div class="muted" style="font-size: 12.5px; margin-top: 6px;">{{ score.flake_checks }} unstable
+        over {{ score.nd_repeats }} repeats; caught {{ nd_id }} in {{ score.nd_hits }}/{{ score.nd_repeats }}</div>
+    </div>
+  </div>
+</section>
 {% endif %}
 
-<div class="section">
-  <div class="section-head"><h2>Provenance</h2></div>
-  <div class="card">
-    <dl class="prov">
-      <dt>Author kind</dt><dd>{{ suite.provenance.author_kind }}</dd>
-      <dt>Produced on</dt><dd class="mono">{{ suite.provenance.produced_on }}</dd>
-      <dt>Method</dt><dd>{{ suite.provenance.method }}</dd>
-      <dt>Spec available</dt><dd>{{ 'yes' if suite.provenance.spec_access else 'no' }}</dd>
-      <dt>Code available</dt><dd>{{ 'yes' if suite.provenance.code_access else 'no' }}</dd>
-      <dt>Tools available</dt><dd>{{ 'yes' if suite.provenance.tool_access else 'no' }}</dd>
-      <dt>Regenerated live</dt>
-      <dd>{% if suite.provenance.recorded_fixture %}
-            <span class="pill pill-warn">no, committed fixture</span>
-          {% else %}<span class="pill pill-idle">not applicable</span>{% endif %}</dd>
-      <dt>Caveat</dt><dd>{{ suite.provenance.caveat }}</dd>
-      <dt>Role here</dt><dd>{{ suite.expectation }}</dd>
-    </dl>
-  </div>
-</div>
-
 {% if slim and slim.minimal %}
-<div class="section">
-  <div class="section-head"><h2>Redundancy</h2>
-    <span class="faint small mono">delta debugging over the check list</span></div>
-  <div class="verdict-strip {{ 'is-warn' if slim.removable else 'is-pass' }}">
-    <span class="verdict-strip-count">{{ slim.minimal }}/{{ slim.n_checks }}</span>
-    <span class="verdict-strip-what">
+<section class="wrap section-tight reveal">
+  <h2 class="h-section" style="font-size: 30px; margin-bottom: 14px;">Redundancy</h2>
+  <div class="strip {{ '' if slim.removable else 'good' }}">
+    <span class="strip-count num">{{ slim.minimal }}/{{ slim.n_checks }}</span>
+    <span class="strip-what">
       {% if slim.removable %}
-        <b>{{ slim.minimal }} of its {{ slim.n_checks }} checks carry all {{ slim.detected }}
-        of its detections.</b> The other {{ slim.removable }} could be deleted without this suite
-        losing a single defect in this run.
+        <b>{{ slim.minimal }} of its {{ slim.n_checks }} checks carry all {{ slim.detected }} of its
+        detections.</b> The other {{ slim.removable }} could be deleted without this suite losing a
+        single defect in this run.
       {% else %}
         <b>Every check earns its place.</b> Deleting any one of the {{ slim.n_checks }} costs this
         suite a detection.
       {% endif %}
     </span>
   </div>
-  <p class="small faint hint">Found by ddmin, which returns a 1-minimal set:
-  no single check can be dropped from it without losing a detection. It is not proved globally
-  smallest, and it is a statement about
-  <a href="/defects">these {{ data.defect_ids | length }} defects</a> only - a check that is
-  redundant here may be the only thing catching a defect this catalog does not contain.</p>
-</div>
+  <p class="muted" style="font-size: 13.5px; max-width: 76ch; margin-top: 14px;">
+    Found by delta debugging, which returns a 1-minimal set: no single check can be dropped from it
+    without losing a detection. It is not proved globally smallest, and it is a statement about
+    <a href="/defects">these {{ data.defect_ids | length }} defects</a> only — a check that is
+    redundant here may be the only thing catching a defect this catalog does not contain.
+  </p>
+</section>
 {% endif %}
 
-<div class="section">
-  <div class="section-head"><h2>Checks ({{ suite.checks | length }})</h2>
-    <a class="btn btn-sm" href="/benchmark">See it in the matrix</a></div>
+<section class="wrap section-tight reveal">
+  <h2 class="h-section" style="font-size: 30px; margin-bottom: 14px;">Checks ({{ suite.checks | length }})</h2>
   {% if not suite.checks %}
     <div class="empty">This suite registered no checks.</div>
   {% else %}
-  <div class="card card-tight"><div class="table-wrap">
-    <table class="data">
-      <thead><tr><th>Id</th><th>Target</th><th>Title</th><th>Intent</th>
+  <div class="tablewrap">
+    <table class="table" style="min-width: 820px;">
+      <thead><tr><th>Id</th><th>Target</th><th>Title</th><th>Why it exists</th>
         {% if slim and slim.minimal %}<th>Load-bearing</th>{% endif %}</tr></thead>
       <tbody>
       {% for c in suite.checks %}
         <tr>
-          <td class="mono">{{ c.id }}</td>
-          <td class="mono">{{ c.target }}</td>
+          <td class="mono" style="white-space: nowrap;">{{ c.id }}</td>
+          <td class="muted" style="font-size: 13px;">{{ c.target }}</td>
           <td>{{ c.title }}</td>
-          <td class="muted">{{ c.intent }}</td>
+          <td class="muted" style="font-size: 13px;">{{ c.intent }}</td>
           {% if slim and slim.minimal %}
-          <td>{% if c.id in slim.keep %}<span class="pill pill-pass">kept</span>
-              {% else %}<span class="pill pill-idle">redundant here</span>{% endif %}</td>
+          <td><span class="tag {{ 'tag-accent-2' if c.id in slim.keep else 'tag-neutral' }}">
+            {{ 'kept' if c.id in slim.keep else 'redundant here' }}</span></td>
           {% endif %}
         </tr>
       {% endfor %}
       </tbody>
     </table>
-  </div></div>
+  </div>
   {% endif %}
-</div>
+</section>
 
 {% if data %}
-<div class="section">
-  <div class="section-head"><h2>Defect by defect</h2>
-    <span class="faint small mono">run #{{ data.run.id }}</span></div>
-  <div class="card card-tight"><div class="table-wrap">
-    <table class="data">
+<section class="wrap section-tight reveal">
+  <h2 class="h-section" style="font-size: 30px; margin-bottom: 14px;">Defect by defect</h2>
+  <div class="tablewrap">
+    <table class="table" style="min-width: 720px;">
       <thead><tr><th>Defect</th><th>Title</th><th>Result</th><th>Detected by</th>
-        <th class="num">Time to detect</th></tr></thead>
+        <th class="right">Time to detect</th></tr></thead>
       <tbody>
       {% for did in data.defect_ids %}
         {% set info = data.detections.get((suite.id, did)) %}
         <tr>
-          <td class="mono"><a href="/defects/{{ did }}">{{ did }}</a></td>
+          <td><a href="/defects/{{ did }}" class="mono">{{ did }}</a></td>
           <td>{{ defect_by_id[did].title }}</td>
-          <td>{% if info and info.detected %}<span class="pill pill-pass">caught</span>
-              {% else %}<span class="pill pill-fail">missed</span>{% endif %}</td>
-          <td class="mono small">{{ info.first_check_id if info and info.detected else '-' }}</td>
-          <td class="num">{% if info and info.detected %}{{ '%.2f' % info.ms }} ms{% else %}<span class="faint">-</span>{% endif %}</td>
+          <td>{{ bits.result_tag(info and info.detected) }}</td>
+          <td class="mono">{{ info.first_check_id if info and info.detected else '—' }}</td>
+          <td class="right num">{% if info and info.detected %}{{ '%.2f' % info.ms }} ms{% else %}<span class="muted">—</span>{% endif %}</td>
         </tr>
       {% endfor %}
       </tbody>
     </table>
-  </div></div>
-</div>
+  </div>
+  <p class="muted" style="font-size: 13px; margin-top: 14px;">Read from run #{{ data.run.id }}.</p>
+</section>
 {% endif %}
+
+<section class="wrap section-tight reveal">
+  <h2 class="h-section" style="font-size: 30px; margin-bottom: 14px;">Provenance</h2>
+  <div class="panel">
+    <dl class="prov">
+      <dt>Author kind</dt><dd>{{ suite.provenance.author_kind }}</dd>
+      <dt>Produced on</dt><dd class="num">{{ suite.provenance.produced_on }}</dd>
+      <dt>Method</dt><dd>{{ suite.provenance.method }}</dd>
+      <dt>Spec available</dt><dd>{{ 'yes' if suite.provenance.spec_access else 'no' }}</dd>
+      <dt>Code available</dt><dd>{{ 'yes' if suite.provenance.code_access else 'no' }}</dd>
+      <dt>Tools available</dt><dd>{{ 'yes' if suite.provenance.tool_access else 'no' }}</dd>
+      <dt>Regenerated live</dt>
+      <dd>{% if suite.provenance.recorded_fixture %}<span class="tag tag-accent">no, committed fixture</span>
+          {% else %}<span class="tag tag-neutral">not applicable</span>{% endif %}</dd>
+      <dt>Caveat</dt><dd>{{ suite.provenance.caveat }}</dd>
+      <dt>Role here</dt><dd>{{ suite.expectation }}</dd>
+    </dl>
+  </div>
+</section>
 
 {% endif %}
 {% endblock %}
