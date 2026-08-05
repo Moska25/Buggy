@@ -1,5 +1,7 @@
 """Route smoke tests: every page renders, and the honesty labelling is present."""
 
+import re
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -76,7 +78,7 @@ def test_lab_post_runs_and_renders_a_scorecard(client):
         "seed": "20260804",
     })
     assert response.status_code == 200
-    assert "Result — run #" in response.text
+    assert "Result: run #" in response.text
     assert "Detection matrix" not in response.text  # the lab renders its own heading
     assert "Matrix for this run" in response.text
 
@@ -88,12 +90,20 @@ def test_lab_post_with_nothing_selected_explains_itself(client):
 
 
 def test_lab_run_is_persisted_and_replayable(client):
-    before = client.get("/runs").text.count("<tr>")
-    client.post("/lab", data={
+    # Assert the run itself, not a row count: /runs is capped at 50 entries, so
+    # counting rows silently stops meaning anything once the store passes 50.
+    response = client.post("/lab", data={
         "target": "all", "defect": ["CHK-005"], "suite": ["checklist"], "seed": "7",
     })
-    after = client.get("/runs").text.count("<tr>")
-    assert after == before + 1
+    assert response.status_code == 200
+    run_id = int(re.search(r"Result: run #(\d+)", response.text).group(1))
+
+    assert f'href="/runs/{run_id}"' in client.get("/runs").text  # listed in the history
+
+    replay = client.get(f"/runs/{run_id}?suite=checklist&build=CHK-005")
+    assert replay.status_code == 200
+    assert "CHK-005" in replay.text
+    assert "timeline" in replay.text  # the stored step log, not a recomputation
 
 
 def test_pages_carry_the_shared_shell(client):

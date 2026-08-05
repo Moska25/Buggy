@@ -1,0 +1,15 @@
+{# Shared instrument components. Rendered from run metadata only. These macros
+   never compute a figure, they only format one the runner already produced. #}
+
+{% macro statusline(run_id, seed, builds, results, ms, link=None) %}
+<div class="statusline">
+  <span>run <b>#{{ run_id }}</b></span>
+  <span>seed <b>{{ seed }}</b></span>
+  <span><b>{{ builds }}</b> builds</span>
+  <span><b>{{ results }}</b> check results</span>
+  <span><b>{{ '%.0f' % ms }}</b> ms in process</span>
+  {% if link %}<span><a href="{{ link }}">replay</a></span>{% endif %}
+</div>
+{% endmacro %}
+
+{% macro band(value, good=0.75, fair=0.4) %}{{ 'pass' if value >= good else ('warn' if value >= fair else 'fail') }}{% endmacro %}

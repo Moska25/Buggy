@@ -39,8 +39,27 @@
         <span class="pill pill-plain pill-idle">precision {{ '%.2f' % score.precision }}</span>
       {% endif %}
     </div>
-    <p style="margin-top:10px;">{{ suite.blurb }}</p>
+    <p class="suite-blurb">{{ suite.blurb }}</p>
     <p class="small faint">{{ suite.expectation }}</p>
+    {% if score %}
+    <div class="suite-bars">
+      <div class="suite-bar">
+        <span class="board-label">Recall</span>
+        <div class="bar {{ 'bar-pass' if score.recall >= 0.75 else ('bar-warn' if score.recall >= 0.4 else 'bar-fail') }}">
+          <span style="width: {{ '%.0f' % (score.recall * 100) }}%"></span></div>
+        <span class="num mono small nowrap">{{ '%.1f' % (score.recall * 100) }}%</span>
+      </div>
+      <div class="suite-bar">
+        <span class="board-label">Precision</span>
+        <div class="bar {{ 'bar-pass' if score.precision >= 0.9 else ('bar-warn' if score.precision >= 0.5 else 'bar-fail') }}">
+          <span style="width: {{ '%.0f' % (score.precision * 100) }}%"></span></div>
+        <span class="num mono small nowrap">{{ '%.2f' % score.precision }}</span>
+      </div>
+      {% if score.fp_results %}
+      <div class="suite-bar-note">{{ score.fp_results }} of its failure reports were noise</div>
+      {% endif %}
+    </div>
+    {% endif %}
     <div class="row small">
       <span class="pill pill-plain {{ 'pill-accent' if suite.provenance.spec_access else 'pill-idle' }}">spec: {{ 'yes' if suite.provenance.spec_access else 'no' }}</span>
       <span class="pill pill-plain {{ 'pill-accent' if suite.provenance.code_access else 'pill-idle' }}">code: {{ 'yes' if suite.provenance.code_access else 'no' }}</span>

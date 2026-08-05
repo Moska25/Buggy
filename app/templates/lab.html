@@ -1,5 +1,7 @@
 {% extends "_layout.html" %}
+{% import "_bits.html" as bits %}
 {% block title %}Lab{% endblock %}
+
 {% block content %}
 
 <div class="page-head">
@@ -20,15 +22,18 @@
 
 <form method="post" action="/lab">
   <div class="card">
-    <div class="card-head" style="padding:0 0 14px; border:0;">
+    <div class="card-head plain">
       <h2>Suites</h2>
       <span class="faint small">Unticking a suite removes it from the scorecard entirely.</span>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-sm" data-set="suite:1">All</button>
+      <button type="button" class="btn btn-sm" data-set="suite:0">None</button>
     </div>
     <div class="toggles">
       {% for s in suites %}
       <label class="toggle">
         <input type="checkbox" name="suite" value="{{ s.id }}" {{ 'checked' if s.id in sel_suites }}>
-        <span><b>{{ s.name }}</b> — {{ s.checks | length }} checks
+        <span><b>{{ s.name }}</b>, {{ s.checks | length }} checks
           {% if s.provenance.recorded_fixture %}<span class="pill pill-warn pill-plain">fixture</span>{% endif %}
         </span>
       </label>
@@ -37,13 +42,18 @@
   </div>
 
   <div class="card">
-    <div class="card-head" style="padding:0 0 14px; border:0;">
+    <div class="card-head plain">
       <h2>Defects to seed</h2>
       <span class="faint small">One build is created per ticked defect, plus one clean build.</span>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-sm" data-set="defect:1">All</button>
+      <button type="button" class="btn btn-sm" data-set="defect:0">None</button>
     </div>
     {% for target, blurb in targets.items() %}
-      <h3 style="margin-top:14px;">{{ target }} <span class="faint small">{{ blurb }}</span></h3>
-      <div class="toggles" style="margin-top:8px;">
+      <h3 class="toggle-group-head">{{ target }} <span class="faint small">{{ blurb }}</span>
+        <button type="button" class="btn btn-sm" data-set="defect:1" data-only="{{ target }}">Only this target</button>
+      </h3>
+      <div class="toggles" data-target="{{ target }}">
         {% for d in defects if d.target == target %}
         <label class="toggle">
           <input type="checkbox" name="defect" value="{{ d.id }}" {{ 'checked' if d.id in sel_defects }}>
@@ -70,12 +80,12 @@
         <label for="seed">Seed</label>
         <input type="number" id="seed" name="seed" value="{{ seed if seed else 20260804 }}">
       </div>
-      <div class="field" style="flex:0 0 auto;">
+      <div class="field tight">
         <label>&nbsp;</label>
         <button class="btn btn-primary" type="submit">Run benchmark</button>
       </div>
     </div>
-    <p class="small faint" style="margin-top:10px;">Narrowing the target keeps only that target's
+    <p class="small faint hint">Narrowing the target keeps only that target's
     ticked defects, so you can score a suite on one subsystem at a time. The seed drives the
     nondeterministic defect ({{ nd_id }}): the same seed reproduces the same run exactly, so change
     it to see the flaky cells move.</p>
@@ -84,10 +94,10 @@
 
 {% if report %}
 <div class="section">
-  <div class="section-head"><h2>Result — run #{{ report.run_id }}</h2>
-    <span class="faint small mono">{{ report.n_builds }} builds ·
-      {{ report.results | length }} check results · {{ '%.0f' % report.duration_ms }} ms ·
-      <a href="/runs/{{ report.run_id }}">replay</a></span></div>
+  <div class="section-head"><h2>Result: run #{{ report.run_id }}</h2></div>
+
+  {{ bits.statusline(report.run_id, report.seed, report.n_builds, report.results | length,
+                     report.duration_ms, '/runs/' ~ report.run_id) }}
 
   <div class="card card-tight"><div class="table-wrap">
     <table class="data">
@@ -101,7 +111,7 @@
           <td class="num">{{ s.n_checks }}</td>
           <td class="num">{{ s.detected }}/{{ s.n_defects }}</td>
           <td>
-            <div class="row" style="gap:8px; flex-wrap:nowrap;">
+            <div class="row tight">
               <div class="bar {{ 'bar-pass' if s.recall >= 0.75 else ('bar-warn' if s.recall >= 0.4 else 'bar-fail') }}">
                 <span style="width: {{ '%.0f' % (s.recall * 100) }}%"></span></div>
               <span class="num mono small nowrap">{{ '%.1f' % (s.recall * 100) }}%</span>
@@ -120,7 +130,7 @@
 
 <div class="section">
   <div class="section-head"><h2>Matrix for this run</h2></div>
-  <div class="card"><div class="table-wrap">
+  <div class="card matrix-card"><div class="table-wrap">
     <table class="matrix">
       <thead><tr><th class="rot">Defect</th>
         {% for sid in report.suite_ids %}<th>{{ suite_by_id[sid].name }}</th>{% endfor %}</tr></thead>
@@ -152,4 +162,28 @@
 {% endfor %}
 {% endif %}
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Ticking 17 defects by hand is the one thing that makes the lab tedious. No
+// framework: three lines of DOM, and the form still works with JS disabled.
+document.querySelectorAll("[data-set]").forEach(function (button) {
+  button.addEventListener("click", function () {
+    var parts = button.dataset.set.split(":");
+    var only = button.dataset.only;
+    var scope = only
+      ? document.querySelector('.toggles[data-target="' + only + '"]')
+      : document;
+    if (only) {
+      document.querySelectorAll('input[name="' + parts[0] + '"]').forEach(function (input) {
+        input.checked = false;
+      });
+    }
+    scope.querySelectorAll('input[name="' + parts[0] + '"]').forEach(function (input) {
+      input.checked = parts[1] === "1";
+    });
+  });
+});
+</script>
 {% endblock %}

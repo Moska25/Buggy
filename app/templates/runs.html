@@ -5,7 +5,8 @@
 <div class="page-head">
   <h1>Run history</h1>
   <p class="lede">Every benchmark and lab run is persisted with its per-check results and step logs,
-  so any run can be replayed exactly as it was computed rather than recomputed.</p>
+  so any run can be replayed exactly as it was computed rather than recomputed. The amber rule marks
+  the seeded benchmark runs; everything else came from <a href="/lab">the lab</a> or the test suite.</p>
 </div>
 
 {% if not runs %}
@@ -19,12 +20,12 @@
       <th class="num">Best recall</th><th class="num">Duration</th></tr></thead>
     <tbody>
     {% for r in runs %}
-      <tr>
+      <tr{{ ' class="is-benchmark"' | safe if r.kind == 'benchmark' }}>
         <td class="mono"><a href="/runs/{{ r.id }}">#{{ r.id }}</a>
           <span class="faint small">{{ r.label }}</span></td>
         <td>{% if r.kind == 'benchmark' %}<span class="pill pill-accent">benchmark</span>
             {% else %}<span class="pill pill-idle">lab</span>{% endif %}</td>
-        <td class="mono small">{{ r.created_at }}</td>
+        <td class="mono small" title="{{ r.created_at }}">{{ r.created_at[:16] | replace('T', ' ') }}</td>
         <td class="num">{{ r.seed }}</td>
         <td class="num">{{ r.n_builds }}</td>
         <td class="num">{{ r.n_checks }}</td>

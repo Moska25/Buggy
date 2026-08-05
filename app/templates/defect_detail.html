@@ -9,7 +9,8 @@
 {% else %}
 
 <div class="page-head">
-  <h1>{{ defect.id }} — {{ defect.title }}</h1>
+  <h1>{{ defect.id }}</h1>
+  <p class="defect-title">{{ defect.title }}</p>
   <p class="lede">{{ defect.description }}</p>
 </div>
 
@@ -19,6 +20,23 @@
   <span class="pill pill-accent pill-plain">target: {{ defect.target }}</span>
   {% if defect.id == nd_id %}<span class="pill pill-warn">nondeterministic</span>{% endif %}
 </div>
+
+{% if rows %}
+{% set n_suites = rows | length %}
+{% set missed = n_suites - caught %}
+<div class="verdict-strip {{ 'is-fail' if caught == 0 else ('is-warn' if caught == 1 else 'is-pass') }}">
+  <span class="verdict-strip-count">{{ caught }}/{{ n_suites }}</span>
+  <span class="verdict-strip-what">
+    {% if caught == 0 %}<b>It survived every suite in this run</b>, including the expert one. This is
+      the defect that would have shipped.
+    {% elif caught == n_suites %}<b>Every suite caught it.</b> The probe that exposes it is one any
+      of these suites already constructs.
+    {% else %}<b>{{ caught }} of {{ n_suites }} suites caught it.</b> The other
+      {{ missed }} never constructed the input described below.
+    {% endif %}
+  </span>
+</div>
+{% endif %}
 
 <div class="section">
   <div class="section-head"><h2>The probe you would need</h2></div>

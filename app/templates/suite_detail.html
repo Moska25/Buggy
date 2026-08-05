@@ -48,13 +48,38 @@
       <dt>Tools available</dt><dd>{{ 'yes' if suite.provenance.tool_access else 'no' }}</dd>
       <dt>Regenerated live</dt>
       <dd>{% if suite.provenance.recorded_fixture %}
-            <span class="pill pill-warn">no — committed fixture</span>
+            <span class="pill pill-warn">no, committed fixture</span>
           {% else %}<span class="pill pill-idle">not applicable</span>{% endif %}</dd>
       <dt>Caveat</dt><dd>{{ suite.provenance.caveat }}</dd>
       <dt>Role here</dt><dd>{{ suite.expectation }}</dd>
     </dl>
   </div>
 </div>
+
+{% if slim and slim.minimal %}
+<div class="section">
+  <div class="section-head"><h2>Redundancy</h2>
+    <span class="faint small mono">delta debugging over the check list</span></div>
+  <div class="verdict-strip {{ 'is-warn' if slim.removable else 'is-pass' }}">
+    <span class="verdict-strip-count">{{ slim.minimal }}/{{ slim.n_checks }}</span>
+    <span class="verdict-strip-what">
+      {% if slim.removable %}
+        <b>{{ slim.minimal }} of its {{ slim.n_checks }} checks carry all {{ slim.detected }}
+        of its detections.</b> The other {{ slim.removable }} could be deleted without this suite
+        losing a single defect in this run.
+      {% else %}
+        <b>Every check earns its place.</b> Deleting any one of the {{ slim.n_checks }} costs this
+        suite a detection.
+      {% endif %}
+    </span>
+  </div>
+  <p class="small faint hint">Found by ddmin, which returns a 1-minimal set:
+  no single check can be dropped from it without losing a detection. It is not proved globally
+  smallest, and it is a statement about
+  <a href="/defects">these {{ data.defect_ids | length }} defects</a> only - a check that is
+  redundant here may be the only thing catching a defect this catalog does not contain.</p>
+</div>
+{% endif %}
 
 <div class="section">
   <div class="section-head"><h2>Checks ({{ suite.checks | length }})</h2>
@@ -64,7 +89,8 @@
   {% else %}
   <div class="card card-tight"><div class="table-wrap">
     <table class="data">
-      <thead><tr><th>Id</th><th>Target</th><th>Title</th><th>Intent</th></tr></thead>
+      <thead><tr><th>Id</th><th>Target</th><th>Title</th><th>Intent</th>
+        {% if slim and slim.minimal %}<th>Load-bearing</th>{% endif %}</tr></thead>
       <tbody>
       {% for c in suite.checks %}
         <tr>
@@ -72,6 +98,10 @@
           <td class="mono">{{ c.target }}</td>
           <td>{{ c.title }}</td>
           <td class="muted">{{ c.intent }}</td>
+          {% if slim and slim.minimal %}
+          <td>{% if c.id in slim.keep %}<span class="pill pill-pass">kept</span>
+              {% else %}<span class="pill pill-idle">redundant here</span>{% endif %}</td>
+          {% endif %}
         </tr>
       {% endfor %}
       </tbody>

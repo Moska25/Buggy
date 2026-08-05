@@ -10,7 +10,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import db, runner
+from . import db, minimise, runner
 from .defects import BY_ID as DEFECT_BY_ID
 from .defects import CATEGORIES, DEFECTS, NONDETERMINISTIC_ID, TARGETS, category_counts
 from .suites import BY_ID as SUITE_BY_ID
@@ -50,6 +50,10 @@ def page(request: Request, active: str, **extra) -> dict:
     }
 
 
+def plural(n: int, word: str) -> str:
+    return f"{n} {word}" if n == 1 else f"{n} {word}s"
+
+
 def latest() -> dict | None:
     run_id = runner.latest_run_id("benchmark")
     return runner.load_run(run_id) if run_id else None
@@ -74,6 +78,7 @@ def headline(data: dict) -> dict:
         "missed_by_all": missed_by_all,
         "caught_by_one": caught_by_one,
         "total_fp": sum(s["fp_checks"] for s in scores),
+        "total_fp_results": sum(s["fp_results"] for s in scores),
         "total_checks": sum(s["n_checks"] for s in scores),
     }
 
@@ -120,7 +125,7 @@ def defect_detail(request: Request, defect_id: str):
         request,
         "defect_detail.html",
         page(request, "/defects", defect=defect, data=data, rows=rows,
-             find_check=find_check),
+             caught=sum(1 for r in rows if r["detected"]), find_check=find_check),
         status_code=200 if defect else 404,
     )
 
@@ -139,10 +144,12 @@ def suite_detail(request: Request, suite_id: str):
     suite = SUITE_BY_ID.get(suite_id)
     data = latest()
     score = next((s for s in data["scores"] if s["suite"] == suite_id), None) if (data and suite) else None
+    # One outcome table plus a ddmin pass; a few milliseconds for the whole suite.
+    slim = minimise.redundancy(suite_id, data["defect_ids"]) if (data and suite) else None
     return templates.TemplateResponse(
         request,
         "suite_detail.html",
-        page(request, "/suites", suite=suite, data=data, score=score),
+        page(request, "/suites", suite=suite, data=data, score=score, slim=slim),
         status_code=200 if suite else 404,
     )
 
@@ -210,7 +217,8 @@ def lab_run(
             suite_ids=chosen_suites,
             seed=seed,
             kind="lab",
-            label=f"Lab: {len(chosen_suites)} suite(s) against {len(chosen_defects)} defect(s)",
+            label=f"Lab: {plural(len(chosen_suites), 'suite')} against "
+                  f"{plural(len(chosen_defects), 'defect')}",
         )
     return templates.TemplateResponse(
         request,

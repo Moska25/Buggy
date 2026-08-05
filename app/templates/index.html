@@ -2,11 +2,53 @@
 {% block title %}Overview{% endblock %}
 {% block content %}
 
+{% if not data %}
 <div class="page-head">
   <h1>Do AI-generated tests actually catch defects?</h1>
-  <p class="lede">Buggy hosts small applications with a catalog of deliberately seeded defects, runs
-  competing test suites against every defective build, and measures which suite caught which defect.
-  The output is a detection matrix and per-suite scorecards, not a green badge.</p>
+  <p class="lede">Buggy seeds known defects, runs competing test suites against every defective
+  build, and measures which suite caught which defect.</p>
+</div>
+<div class="empty">No benchmark run stored yet. Run <code>python -m app.seed</code> to populate one.</div>
+{% else %}
+
+<section class="hero">
+  <div class="hero-copy">
+    <h1>Do AI-generated tests actually catch defects?</h1>
+    <p class="lede">Buggy seeds {{ data.defect_ids | length }} known defects, runs {{ data.suite_ids | length }} competing
+    test suites against every defective build, and scores who found what.</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="/benchmark">See the detection matrix</a>
+      <a class="btn" href="/lab">Run it yourself</a>
+    </div>
+  </div>
+
+  <figure class="verdict">
+    <figcaption class="board-label">Recall on identical defects, identical targets</figcaption>
+    {% for s in (head.best, head.worst) %}
+    <div class="verdict-row">
+      <div class="verdict-name">{{ suite_by_id[s.suite].name }}</div>
+      <div class="verdict-value {{ 'is-pass' if s.recall >= 0.75 else ('is-warn' if s.recall >= 0.4 else 'is-fail') }}">{{ '%.1f' % (s.recall * 100) }}%</div>
+      <div class="bar {{ 'bar-pass' if s.recall >= 0.75 else ('bar-warn' if s.recall >= 0.4 else 'bar-fail') }}">
+        <span style="width: {{ '%.0f' % (s.recall * 100) }}%"></span></div>
+      <div class="verdict-sub">{{ s.detected }} of {{ s.n_defects }} found ·
+        {{ s.n_checks }} checks · {{ suite_by_id[s.suite].provenance.author_kind }}</div>
+    </div>
+    {% endfor %}
+    <div class="verdict-gap">
+      <b>{{ '%.0f' % ((head.best.recall - head.worst.recall) * 100) }} points</b> of recall separate
+      the best suite from the worst. Same defects, same code, same machine.
+    </div>
+  </figure>
+</section>
+
+<div class="statusline">
+  <span>run <b>#{{ data.run.id }}</b></span>
+  <span>seed <b>{{ data.run.seed }}</b></span>
+  <span><b>{{ data.defect_ids | length }}</b> defects over <b>{{ targets | length }}</b> targets</span>
+  <span><b>{{ categories | length }}</b> categories</span>
+  <span><b>{{ head.total_checks }}</b> checks</span>
+  <span><b>{{ data.run.n_builds }}</b> builds</span>
+  <span><b>{{ data.run.n_results }}</b> check results</span>
 </div>
 
 <div class="note">
@@ -16,62 +58,40 @@
   positive, not a finding.
 </div>
 
-{% if not data %}
-  <div class="empty">No benchmark run stored yet. Run <code>python -m app.seed</code> to populate one.</div>
-{% else %}
-
-<div class="grid grid-4">
-  <div class="metric">
-    <div class="metric-label">Seeded defects</div>
-    <div class="metric-value">{{ data.defect_ids | length }}</div>
-    <div class="metric-sub">across {{ targets | length }} targets, {{ categories | length }} categories</div>
-  </div>
-  <div class="metric">
-    <div class="metric-label">Checks executed</div>
-    <div class="metric-value">{{ data.run.n_results }}</div>
-    <div class="metric-sub">{{ head.total_checks }} checks over {{ data.run.n_builds }} builds</div>
-  </div>
-  <div class="metric">
-    <div class="metric-label">Best recall</div>
-    <div class="metric-value is-pass">{{ '%.0f' % (head.best.recall * 100) }}%</div>
-    <div class="metric-sub">{{ suite_by_id[head.best.suite].name }} — {{ head.best.detected }}/{{ head.best.n_defects }} found</div>
-  </div>
-  <div class="metric">
-    <div class="metric-label">Worst recall</div>
-    <div class="metric-value is-fail">{{ '%.0f' % (head.worst.recall * 100) }}%</div>
-    <div class="metric-sub">{{ suite_by_id[head.worst.suite].name }} — {{ head.worst.detected }}/{{ head.worst.n_defects }} found</div>
-  </div>
-</div>
-
 <div class="section">
   <div class="section-head"><h2>What this run actually found</h2>
-    <span class="faint small mono">run #{{ data.run.id }} · seed {{ data.run.seed }} · {{ data.run.created_at }}</span></div>
-  <div class="card">
-    <p>Every sentence below is computed from run #{{ data.run.id }}, not written by hand.</p>
-    <ul class="stack" style="margin:0; padding-left:18px;">
-      <li>The spread between the best and worst suite is
-        <strong class="mono">{{ '%.0f' % ((head.best.recall - head.worst.recall) * 100) }} points</strong>
-        of recall, on identical defects and identical targets.</li>
-      {% if head.missed_by_all %}
-      <li><strong>{{ head.missed_by_all | length }} defect{{ 's' if head.missed_by_all|length != 1 }}
-        ({{ head.missed_by_all | join(', ') }}) survived every suite</strong>, including the expert one.
-        {% for d in head.missed_by_all %}<span class="faint">{{ defect_by_id[d].title }}.</span>{% endfor %}</li>
-      {% endif %}
-      {% if head.caught_by_one %}
-      <li>{{ head.caught_by_one | length }} defect{{ 's' if head.caught_by_one|length != 1 }} were caught by
-        exactly one suite ({{ head.caught_by_one | join(', ') }}) - the thin margin that separates
-        "we tested it" from "we would have shipped it".</li>
-      {% endif %}
-      {% if head.total_fp %}
-      <li>{{ head.total_fp }} check{{ 's' if head.total_fp != 1 }} fail against the clean build. They
-        report defects that do not exist and earn zero detection credit.</li>
-      {% endif %}
-    </ul>
+    <span class="faint small mono">computed from run #{{ data.run.id }}, not written by hand</span></div>
+  <div class="findings">
+    {% if head.missed_by_all %}
+    <div class="finding is-fail">
+      <div class="finding-value">{{ head.missed_by_all | length }}</div>
+      <div class="finding-what">defect{{ 's' if head.missed_by_all|length != 1 }} survived every suite</div>
+      <p class="finding-why">{% for d in head.missed_by_all %}<a href="/defects/{{ d }}">{{ d }}</a>,
+        {{ defect_by_id[d].title | lower }}. {% endfor %}The expert suite missed it too.</p>
+    </div>
+    {% endif %}
+    {% if head.caught_by_one %}
+    <div class="finding is-warn">
+      <div class="finding-value">{{ head.caught_by_one | length }}</div>
+      <div class="finding-what">caught by exactly one suite</div>
+      <p class="finding-why">{% for d in head.caught_by_one %}<a href="/defects/{{ d }}">{{ d }}</a>{{ ', ' if not loop.last }}{% endfor %}.
+        The thin margin between "we tested it" and "we would have shipped it".</p>
+    </div>
+    {% endif %}
+    {% if head.total_fp_results %}
+    <div class="finding is-fail">
+      <div class="finding-value">{{ head.total_fp_results }}</div>
+      <div class="finding-what">bogus failure reports</div>
+      <p class="finding-why">Generated by {{ head.total_fp }} check{{ 's' if head.total_fp != 1 }}
+        that fail with no defect present. They earn zero detection credit and drag that suite's
+        precision to <a href="/suites/llm_naive">{{ '%.2f' % (data.scores | map(attribute='precision') | min) }}</a>.</p>
+    </div>
+    {% endif %}
   </div>
 </div>
 
 <div class="section">
-  <div class="section-head"><h2>Suites</h2><a class="btn btn-sm" href="/suites">All suites and provenance</a></div>
+  <div class="section-head"><h2>Suites under test</h2><a class="btn btn-sm" href="/suites">Provenance</a></div>
   <div class="card card-tight"><div class="table-wrap">
     <table class="data">
       <thead><tr><th>Suite</th><th>Author</th><th class="num">Checks</th><th class="num">Recall</th>
@@ -96,25 +116,23 @@
 </div>
 
 <div class="section">
-  <div class="section-head"><h2>Where to look</h2></div>
-  <div class="grid grid-2">
-    <div class="card">
-      <h3><a href="/benchmark">The detection matrix</a></h3>
-      <p>Defects down, suites across. Hover any cell for the check that caught it, and read the
-      per-suite scorecards underneath.</p>
-      <h3><a href="/defects">Defect catalog</a></h3>
-      <p>All {{ data.defect_ids | length }} seeded defects, each with the probe a tester would need to
-      construct to see it at all.</p>
-    </div>
-    <div class="card">
-      <h3><a href="/suites">Suites and provenance</a></h3>
-      <p>Who wrote each suite, with what access. The two LLM suites are labelled recorded fixtures -
-      nothing is generated at run time.</p>
-      <h3><a href="/lab">Lab</a></h3>
-      <p>Pick defects and suites, run the benchmark live, and watch a suite's recall move when you
-      change what it is up against.</p>
-    </div>
-  </div>
+  <div class="section-head"><h2>Five minutes, in order</h2></div>
+  <ol class="tour">
+    <li><a href="/benchmark">The detection matrix</a>
+      <span>Defects down, suites across. Read the {{ head.missed_by_all | join(', ') }} row: it is
+      recessed all the way across.</span></li>
+    <li><a href="/benchmark#scoreboard">The scoreboard</a>
+      <span>Recall against precision. The spec-only suite reports
+      {{ head.total_fp_results }} failures that are not defects.</span></li>
+    <li><a href="/suites/llm_naive">Why that suite is noisy</a>
+      <span>{{ head.total_fp }} of its checks assert behaviour the spec never promised, so they
+      fail on the clean build. The provenance panel states it is a committed fixture, not a live agent.</span></li>
+    <li><a href="/runs/{{ data.run.id }}?suite=expert&amp;build=CHK-004">One assertion, replayed</a>
+      <span>The exact step that caught the shipping-threshold off-by-one, from the stored log.</span></li>
+    <li><a href="/lab">The lab</a>
+      <span>Untick everything except {{ nd_id }}, run it, change the seed, run it again, and watch
+      the flaky cells move.</span></li>
+  </ol>
 </div>
 
 {% endif %}

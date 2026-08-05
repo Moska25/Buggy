@@ -5,3 +5,8 @@ __pycache__/
 .pytest_cache/
 data/cache/
 .DS_Store
+
+# Local UI working folder: the styleguide and its brief. Handed to a
+# designer session, never shipped. docs/screenshots and docs/bench-baseline.json
+# stay tracked: the README and the CI workflow reference them.
+ui-kit/

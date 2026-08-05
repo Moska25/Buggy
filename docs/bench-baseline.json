@@ -1,0 +1,796 @@
+{
+  "run": {
+    "seed": 20260804,
+    "kind": "benchmark",
+    "label": "",
+    "n_builds": 18,
+    "n_checks": 72,
+    "n_results": 1296,
+    "duration_ms": 31.702333,
+    "repeats": 5
+  },
+  "suite_ids": [
+    "expert",
+    "checklist",
+    "llm_naive",
+    "llm_tooled"
+  ],
+  "defect_ids": [
+    "CHK-001",
+    "CHK-002",
+    "CHK-003",
+    "CHK-004",
+    "CHK-005",
+    "CHK-006",
+    "AUT-001",
+    "AUT-002",
+    "AUT-003",
+    "AUT-004",
+    "AUT-005",
+    "AUT-006",
+    "LED-001",
+    "LED-002",
+    "LED-003",
+    "LED-004",
+    "LED-005"
+  ],
+  "scores": [
+    {
+      "suite": "expert",
+      "n_checks": 24,
+      "detected": 16,
+      "n_defects": 17,
+      "recall": 0.9411764705882353,
+      "precision": 1.0,
+      "fp_checks": 0,
+      "fp_results": 0,
+      "mttd_ms": 0.16810168749999999,
+      "runtime_ms": 6.33416,
+      "flake_rate": 0.0,
+      "flake_checks": 0,
+      "nd_hits": 5,
+      "nd_repeats": 5
+    },
+    {
+      "suite": "llm_tooled",
+      "n_checks": 20,
+      "detected": 13,
+      "n_defects": 17,
+      "recall": 0.7647058823529411,
+      "precision": 1.0,
+      "fp_checks": 0,
+      "fp_results": 0,
+      "mttd_ms": 0.1180546923076923,
+      "runtime_ms": 4.406419,
+      "flake_rate": 0.1,
+      "flake_checks": 2,
+      "nd_hits": 4,
+      "nd_repeats": 5
+    },
+    {
+      "suite": "llm_naive",
+      "n_checks": 17,
+      "detected": 7,
+      "n_defects": 17,
+      "recall": 0.4117647058823529,
+      "precision": 0.16666666666666666,
+      "fp_checks": 2,
+      "fp_results": 35,
+      "mttd_ms": 0.07091642857142857,
+      "runtime_ms": 2.932286,
+      "flake_rate": 0.058823529411764705,
+      "flake_checks": 1,
+      "nd_hits": 3,
+      "nd_repeats": 5
+    },
+    {
+      "suite": "checklist",
+      "n_checks": 11,
+      "detected": 2,
+      "n_defects": 17,
+      "recall": 0.11764705882352941,
+      "precision": 1.0,
+      "fp_checks": 0,
+      "fp_results": 0,
+      "mttd_ms": 0.0622095,
+      "runtime_ms": 2.1261219999999996,
+      "flake_rate": 0.0,
+      "flake_checks": 0,
+      "nd_hits": 0,
+      "nd_repeats": 5
+    }
+  ],
+  "detections": [
+    {
+      "suite": "checklist",
+      "defect_id": "AUT-001",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "checklist",
+      "defect_id": "AUT-002",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "checklist",
+      "defect_id": "AUT-003",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "checklist",
+      "defect_id": "AUT-004",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "checklist",
+      "defect_id": "AUT-005",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "checklist",
+      "defect_id": "AUT-006",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "checklist",
+      "defect_id": "CHK-001",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "checklist",
+      "defect_id": "CHK-002",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "checklist",
+      "defect_id": "CHK-003",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "checklist",
+      "defect_id": "CHK-004",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "checklist",
+      "defect_id": "CHK-005",
+      "detected": true,
+      "first_check_id": "LST-CHK-05",
+      "ms": 0.044376000000000006,
+      "n_detecting": 1,
+      "checks": [
+        "LST-CHK-05"
+      ]
+    },
+    {
+      "suite": "checklist",
+      "defect_id": "CHK-006",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "checklist",
+      "defect_id": "LED-001",
+      "detected": true,
+      "first_check_id": "LST-LED-02",
+      "ms": 0.080043,
+      "n_detecting": 1,
+      "checks": [
+        "LST-LED-02"
+      ]
+    },
+    {
+      "suite": "checklist",
+      "defect_id": "LED-002",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "checklist",
+      "defect_id": "LED-003",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "checklist",
+      "defect_id": "LED-004",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "checklist",
+      "defect_id": "LED-005",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "expert",
+      "defect_id": "AUT-001",
+      "detected": true,
+      "first_check_id": "EXP-AUT-02",
+      "ms": 0.098414,
+      "n_detecting": 1,
+      "checks": [
+        "EXP-AUT-02"
+      ]
+    },
+    {
+      "suite": "expert",
+      "defect_id": "AUT-002",
+      "detected": true,
+      "first_check_id": "EXP-AUT-04",
+      "ms": 0.116834,
+      "n_detecting": 1,
+      "checks": [
+        "EXP-AUT-04"
+      ]
+    },
+    {
+      "suite": "expert",
+      "defect_id": "AUT-003",
+      "detected": true,
+      "first_check_id": "EXP-AUT-06",
+      "ms": 0.20275,
+      "n_detecting": 1,
+      "checks": [
+        "EXP-AUT-06"
+      ]
+    },
+    {
+      "suite": "expert",
+      "defect_id": "AUT-004",
+      "detected": true,
+      "first_check_id": "EXP-AUT-07",
+      "ms": 0.198335,
+      "n_detecting": 1,
+      "checks": [
+        "EXP-AUT-07"
+      ]
+    },
+    {
+      "suite": "expert",
+      "defect_id": "AUT-005",
+      "detected": true,
+      "first_check_id": "EXP-AUT-08",
+      "ms": 0.214625,
+      "n_detecting": 1,
+      "checks": [
+        "EXP-AUT-08"
+      ]
+    },
+    {
+      "suite": "expert",
+      "defect_id": "AUT-006",
+      "detected": true,
+      "first_check_id": "EXP-AUT-05",
+      "ms": 0.246416,
+      "n_detecting": 1,
+      "checks": [
+        "EXP-AUT-05"
+      ]
+    },
+    {
+      "suite": "expert",
+      "defect_id": "CHK-001",
+      "detected": true,
+      "first_check_id": "EXP-CHK-06",
+      "ms": 0.05350100000000001,
+      "n_detecting": 1,
+      "checks": [
+        "EXP-CHK-06"
+      ]
+    },
+    {
+      "suite": "expert",
+      "defect_id": "CHK-002",
+      "detected": true,
+      "first_check_id": "EXP-CHK-02",
+      "ms": 0.016749000000000003,
+      "n_detecting": 2,
+      "checks": [
+        "EXP-CHK-02",
+        "EXP-CHK-03"
+      ]
+    },
+    {
+      "suite": "expert",
+      "defect_id": "CHK-003",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "expert",
+      "defect_id": "CHK-004",
+      "detected": true,
+      "first_check_id": "EXP-CHK-04",
+      "ms": 0.025125,
+      "n_detecting": 1,
+      "checks": [
+        "EXP-CHK-04"
+      ]
+    },
+    {
+      "suite": "expert",
+      "defect_id": "CHK-005",
+      "detected": true,
+      "first_check_id": "EXP-CHK-06",
+      "ms": 0.059543000000000006,
+      "n_detecting": 2,
+      "checks": [
+        "EXP-CHK-06",
+        "EXP-CHK-07"
+      ]
+    },
+    {
+      "suite": "expert",
+      "defect_id": "CHK-006",
+      "detected": true,
+      "first_check_id": "EXP-CHK-08",
+      "ms": 0.054541,
+      "n_detecting": 1,
+      "checks": [
+        "EXP-CHK-08"
+      ]
+    },
+    {
+      "suite": "expert",
+      "defect_id": "LED-001",
+      "detected": true,
+      "first_check_id": "EXP-LED-01",
+      "ms": 0.233417,
+      "n_detecting": 1,
+      "checks": [
+        "EXP-LED-01"
+      ]
+    },
+    {
+      "suite": "expert",
+      "defect_id": "LED-002",
+      "detected": true,
+      "first_check_id": "EXP-LED-02",
+      "ms": 0.26403999999999994,
+      "n_detecting": 1,
+      "checks": [
+        "EXP-LED-02"
+      ]
+    },
+    {
+      "suite": "expert",
+      "defect_id": "LED-003",
+      "detected": true,
+      "first_check_id": "EXP-LED-04",
+      "ms": 0.288211,
+      "n_detecting": 1,
+      "checks": [
+        "EXP-LED-04"
+      ]
+    },
+    {
+      "suite": "expert",
+      "defect_id": "LED-004",
+      "detected": true,
+      "first_check_id": "EXP-LED-05",
+      "ms": 0.30600099999999997,
+      "n_detecting": 1,
+      "checks": [
+        "EXP-LED-05"
+      ]
+    },
+    {
+      "suite": "expert",
+      "defect_id": "LED-005",
+      "detected": true,
+      "first_check_id": "EXP-LED-06",
+      "ms": 0.311125,
+      "n_detecting": 1,
+      "checks": [
+        "EXP-LED-06"
+      ]
+    },
+    {
+      "suite": "llm_naive",
+      "defect_id": "AUT-001",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "llm_naive",
+      "defect_id": "AUT-002",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "llm_naive",
+      "defect_id": "AUT-003",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "llm_naive",
+      "defect_id": "AUT-004",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "llm_naive",
+      "defect_id": "AUT-005",
+      "detected": true,
+      "first_check_id": "NAI-AUT-05",
+      "ms": 0.104249,
+      "n_detecting": 1,
+      "checks": [
+        "NAI-AUT-05"
+      ]
+    },
+    {
+      "suite": "llm_naive",
+      "defect_id": "AUT-006",
+      "detected": true,
+      "first_check_id": "NAI-AUT-02",
+      "ms": 0.091249,
+      "n_detecting": 1,
+      "checks": [
+        "NAI-AUT-02"
+      ]
+    },
+    {
+      "suite": "llm_naive",
+      "defect_id": "CHK-001",
+      "detected": true,
+      "first_check_id": "NAI-CHK-02",
+      "ms": 0.01425,
+      "n_detecting": 1,
+      "checks": [
+        "NAI-CHK-02"
+      ]
+    },
+    {
+      "suite": "llm_naive",
+      "defect_id": "CHK-002",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "llm_naive",
+      "defect_id": "CHK-003",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "llm_naive",
+      "defect_id": "CHK-004",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "llm_naive",
+      "defect_id": "CHK-005",
+      "detected": true,
+      "first_check_id": "NAI-CHK-03",
+      "ms": 0.020542,
+      "n_detecting": 1,
+      "checks": [
+        "NAI-CHK-03"
+      ]
+    },
+    {
+      "suite": "llm_naive",
+      "defect_id": "CHK-006",
+      "detected": true,
+      "first_check_id": "NAI-CHK-04",
+      "ms": 0.022958,
+      "n_detecting": 1,
+      "checks": [
+        "NAI-CHK-04"
+      ]
+    },
+    {
+      "suite": "llm_naive",
+      "defect_id": "LED-001",
+      "detected": true,
+      "first_check_id": "NAI-LED-01",
+      "ms": 0.11096100000000002,
+      "n_detecting": 1,
+      "checks": [
+        "NAI-LED-01"
+      ]
+    },
+    {
+      "suite": "llm_naive",
+      "defect_id": "LED-002",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "llm_naive",
+      "defect_id": "LED-003",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "llm_naive",
+      "defect_id": "LED-004",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "llm_naive",
+      "defect_id": "LED-005",
+      "detected": true,
+      "first_check_id": "NAI-LED-02",
+      "ms": 0.132206,
+      "n_detecting": 1,
+      "checks": [
+        "NAI-LED-02"
+      ]
+    },
+    {
+      "suite": "llm_tooled",
+      "defect_id": "AUT-001",
+      "detected": true,
+      "first_check_id": "TOO-AUT-02",
+      "ms": 0.061292,
+      "n_detecting": 1,
+      "checks": [
+        "TOO-AUT-02"
+      ]
+    },
+    {
+      "suite": "llm_tooled",
+      "defect_id": "AUT-002",
+      "detected": true,
+      "first_check_id": "TOO-AUT-03",
+      "ms": 0.076877,
+      "n_detecting": 1,
+      "checks": [
+        "TOO-AUT-03"
+      ]
+    },
+    {
+      "suite": "llm_tooled",
+      "defect_id": "AUT-003",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "llm_tooled",
+      "defect_id": "AUT-004",
+      "detected": true,
+      "first_check_id": "TOO-AUT-05",
+      "ms": 0.10358400000000001,
+      "n_detecting": 1,
+      "checks": [
+        "TOO-AUT-05"
+      ]
+    },
+    {
+      "suite": "llm_tooled",
+      "defect_id": "AUT-005",
+      "detected": true,
+      "first_check_id": "TOO-AUT-06",
+      "ms": 0.225419,
+      "n_detecting": 1,
+      "checks": [
+        "TOO-AUT-06"
+      ]
+    },
+    {
+      "suite": "llm_tooled",
+      "defect_id": "AUT-006",
+      "detected": true,
+      "first_check_id": "TOO-AUT-04",
+      "ms": 0.125836,
+      "n_detecting": 1,
+      "checks": [
+        "TOO-AUT-04"
+      ]
+    },
+    {
+      "suite": "llm_tooled",
+      "defect_id": "CHK-001",
+      "detected": true,
+      "first_check_id": "TOO-CHK-05",
+      "ms": 0.033040999999999994,
+      "n_detecting": 1,
+      "checks": [
+        "TOO-CHK-05"
+      ]
+    },
+    {
+      "suite": "llm_tooled",
+      "defect_id": "CHK-002",
+      "detected": true,
+      "first_check_id": "TOO-CHK-02",
+      "ms": 0.012083,
+      "n_detecting": 2,
+      "checks": [
+        "TOO-CHK-02",
+        "TOO-CHK-03"
+      ]
+    },
+    {
+      "suite": "llm_tooled",
+      "defect_id": "CHK-003",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "llm_tooled",
+      "defect_id": "CHK-004",
+      "detected": true,
+      "first_check_id": "TOO-CHK-04",
+      "ms": 0.022750999999999997,
+      "n_detecting": 1,
+      "checks": [
+        "TOO-CHK-04"
+      ]
+    },
+    {
+      "suite": "llm_tooled",
+      "defect_id": "CHK-005",
+      "detected": true,
+      "first_check_id": "TOO-CHK-06",
+      "ms": 0.031375,
+      "n_detecting": 1,
+      "checks": [
+        "TOO-CHK-06"
+      ]
+    },
+    {
+      "suite": "llm_tooled",
+      "defect_id": "CHK-006",
+      "detected": true,
+      "first_check_id": "TOO-CHK-07",
+      "ms": 0.036458,
+      "n_detecting": 1,
+      "checks": [
+        "TOO-CHK-07"
+      ]
+    },
+    {
+      "suite": "llm_tooled",
+      "defect_id": "LED-001",
+      "detected": true,
+      "first_check_id": "TOO-LED-01",
+      "ms": 0.21779099999999998,
+      "n_detecting": 1,
+      "checks": [
+        "TOO-LED-01"
+      ]
+    },
+    {
+      "suite": "llm_tooled",
+      "defect_id": "LED-002",
+      "detected": true,
+      "first_check_id": "TOO-LED-02",
+      "ms": 0.15403999999999998,
+      "n_detecting": 1,
+      "checks": [
+        "TOO-LED-02"
+      ]
+    },
+    {
+      "suite": "llm_tooled",
+      "defect_id": "LED-003",
+      "detected": true,
+      "first_check_id": "TOO-LED-03",
+      "ms": 0.434164,
+      "n_detecting": 1,
+      "checks": [
+        "TOO-LED-03"
+      ]
+    },
+    {
+      "suite": "llm_tooled",
+      "defect_id": "LED-004",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    },
+    {
+      "suite": "llm_tooled",
+      "defect_id": "LED-005",
+      "detected": false,
+      "first_check_id": "",
+      "ms": 0.0,
+      "n_detecting": 0,
+      "checks": []
+    }
+  ]
+}

@@ -1,25 +1,552 @@
-/* Buggy — accent override plus the handful of rules base.css does not cover. */
+/* Buggy — "test harness": an instrument, not a dashboard.
+   Amber is instrument chrome (rules, labels, rails), never decoration.
+   Everything here layers on base.css; base.css itself is never edited. */
 
-:root { --accent: #f59e0b; }
+:root {
+  --accent: #f59e0b;
+  --lit:     color-mix(in srgb, var(--pass) 32%, #071b10);
+  --recess:  #090b0e;
+}
 
-/* Detection matrix: keep the defect label column readable and pinned while the
-   suite columns scroll on a narrow screen. */
-.matrix th.rot { position: sticky; left: 0; background: var(--bg); z-index: 1; text-align: left; }
+/* ---------- texture: 4px dot grid + the scope rail under the topbar ------- */
+
+/* Behind everything (base.css lifts real content to z-index 1), so it can never
+   sit between text and its background and cannot affect contrast. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: radial-gradient(circle at 1px 1px,
+    color-mix(in srgb, var(--accent) 14%, transparent) 1px, transparent 0);
+  background-size: 4px 4px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.topbar::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg,
+    var(--accent) 0 96px,
+    color-mix(in srgb, var(--accent) 45%, transparent) 96px 168px,
+    color-mix(in srgb, var(--accent) 16%, transparent) 168px 320px,
+    transparent 320px);
+}
+
+/* ---------- type: monospace-dominant chrome, sans body -------------------- */
+
+h1, h2, h3, h4,
+.brand,
+.nav a,
+.metric-label,
+table.data th,
+.field label,
+.btn {
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+h1 { font-size: 21px; font-weight: 600; letter-spacing: 0.06em; }
+h2 { font-size: 14px; letter-spacing: 0.1em; color: var(--accent-text); }
+h3 { font-size: 12.5px; letter-spacing: 0.09em; }
+
+.brand { font-size: 14px; }
+/* Descriptive text riding along inside a heading stays sentence-case sans. */
+.brand-sub, h1 .faint, h2 .faint, h3 .faint {
+  font-family: var(--sans);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.nav a { font-size: 11.5px; letter-spacing: 0.07em; }
+.btn { font-size: 11.5px; letter-spacing: 0.07em; }
+.section-head h2::before {
+  content: "";
+  width: 7px; height: 7px;
+  background: var(--accent);
+  flex: none;
+}
+
+.num, .mono, .metric-value, .statusline, .board, .matrix {
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+/* ---------- overview hero ------------------------------------------------ */
+
+/* Asymmetric split: the question on the left, the measured answer on the right.
+   The "asset" is the result itself - a benchmark has no honest photograph. */
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
+  gap: 40px;
+  align-items: start;
+  margin: 4px 0 26px;
+}
+.hero-copy h1 { font-size: 27px; line-height: 1.25; margin-bottom: 12px; }
+.hero-copy .lede { color: var(--text-muted); font-size: 14.5px; max-width: 46ch; margin: 0; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+
+.verdict {
+  margin: 0;
+  padding: 20px 22px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 4%, transparent), transparent 55%),
+    var(--surface);
+}
+.verdict .board-label { margin-bottom: 16px; }
+.verdict-row + .verdict-row { margin-top: 16px; }
+.verdict-name { font-size: 13px; font-weight: 600; }
+.verdict-value {
+  font-family: var(--mono);
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin: 2px 0 7px;
+}
+.verdict-value.is-pass { color: var(--pass); }
+.verdict-value.is-warn { color: var(--warn); }
+.verdict-value.is-fail { color: var(--fail); }
+.verdict-sub { font-size: 11.5px; color: var(--text-muted); margin-top: 7px; font-family: var(--mono); }
+.verdict-gap {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.verdict-gap b { color: var(--accent-text); font-family: var(--mono); font-weight: 600; }
+
+/* ---------- defect verdict strip ----------------------------------------- */
+
+.defect-title { font-size: 16px; color: var(--text); margin: 0 0 8px; }
+
+.verdict-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 16px;
+  margin-top: 18px;
+  padding: 14px 18px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--idle);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  background: var(--surface);
+}
+.verdict-strip-count {
+  font-family: var(--mono);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text-muted);
+}
+.verdict-strip-what { flex: 1 1 320px; font-size: 13px; color: var(--text-muted); }
+.verdict-strip-what b { color: var(--text); }
+.verdict-strip.is-fail { border-left-color: var(--fail); background: color-mix(in srgb, var(--fail) 6%, var(--surface)); }
+.verdict-strip.is-fail .verdict-strip-count { color: var(--fail); }
+.verdict-strip.is-warn { border-left-color: var(--warn); }
+.verdict-strip.is-warn .verdict-strip-count { color: var(--warn); }
+.verdict-strip.is-pass { border-left-color: var(--pass); }
+.verdict-strip.is-pass .verdict-strip-count { color: var(--pass); }
+
+/* ---------- findings (overview) ------------------------------------------ */
+
+.findings { display: grid; grid-template-columns: repeat(auto-fit, minmax(238px, 1fr)); gap: 14px; }
+.finding {
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--idle);
+  border-radius: 0 0 var(--r-sm) var(--r-sm);
+}
+.finding.is-fail { border-top-color: var(--fail); }
+.finding.is-warn { border-top-color: var(--warn); }
+.finding-value {
+  font-family: var(--mono);
+  font-size: 40px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+.finding.is-fail .finding-value { color: var(--fail); }
+.finding.is-warn .finding-value { color: var(--warn); }
+.finding-what {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text);
+  margin-top: 8px;
+}
+.finding-why { font-size: 12.5px; color: var(--text-muted); margin: 8px 0 0; }
+
+/* ---------- guided tour -------------------------------------------------- */
+
+.tour { list-style: none; counter-reset: stop; margin: 0; padding: 0; }
+.tour li {
+  counter-increment: stop;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 15em) minmax(0, 1fr);
+  gap: 4px 16px;
+  align-items: baseline;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--border);
+}
+.tour li:last-child { border-bottom: 0; }
+.tour li::before {
+  content: counter(stop, decimal-leading-zero);
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--accent);
+}
+.tour li a { font-weight: 600; font-size: 13.5px; }
+.tour li span { font-size: 12.5px; color: var(--text-muted); }
+
+/* ---------- terminal status strip (run metadata) -------------------------- */
+
+.statusline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  margin: 0 0 18px;
+  padding: 8px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.statusline b { color: var(--text); font-weight: 600; }
+.statusline > span + span::before {
+  content: "\00b7";
+  color: var(--text-muted);
+  margin-right: 10px;
+}
+
+/* ---------- ranked scoreboard (/benchmark) -------------------------------- */
+
+.board { list-style: none; margin: 0; padding: 0; }
+.board > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 20px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.board > li:last-child { border-bottom: 0; }
+.board > li.is-noisy { background: color-mix(in srgb, var(--fail) 5%, transparent); }
+
+.board-rank {
+  flex: none;
+  width: 40px;
+  font-family: var(--mono);
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text-faint);
+}
+.board > li:first-child .board-rank { color: var(--accent); }
+
+.board-id { flex: 1 1 210px; min-width: 0; }
+.board-name { font-size: 14px; font-weight: 600; }
+.board-sub { font-size: 11.5px; color: var(--text-muted); margin-top: 3px; }
+
+.board-fig { flex: 0 0 auto; width: 128px; }
+.board-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.board-hero {
+  font-family: var(--mono);
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+.board-hero.sm { font-size: 20px; }
+.board-hero.is-pass { color: var(--pass); }
+.board-hero.is-warn { color: var(--warn); }
+.board-hero.is-fail { color: var(--fail); }
+.board-fig .bar { margin-top: 6px; }
+.board-fig .board-note { font-size: 11px; color: var(--text-muted); margin-top: 5px; }
+
+/* The false-positive block. The whole point of the page is that this number is
+   impossible to miss for the spec-only suite, so it gets hatching and weight. */
+.board-fp {
+  flex: 0 0 auto;
+  width: 168px;
+  padding: 8px 12px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.board-fp .board-label { color: var(--text-muted); }
+.board-fp .board-fp-value {
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-muted);
+}
+.board-fp .board-note { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.board-fp.is-noise {
+  border-color: color-mix(in srgb, var(--fail) 55%, transparent);
+  background:
+    repeating-linear-gradient(135deg,
+      color-mix(in srgb, var(--fail) 13%, transparent) 0 6px,
+      transparent 6px 12px),
+    color-mix(in srgb, var(--fail) 8%, var(--surface));
+}
+.board-fp.is-noise .board-fp-value { color: var(--fail); font-size: 26px; }
+.board-fp.is-noise .board-label,
+.board-fp.is-noise .board-note { color: color-mix(in srgb, var(--fail) 45%, var(--text)); }
+
+.board-stats {
+  flex: 1 1 230px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
+  gap: 2px 14px;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.board-stats b { color: var(--text); font-weight: 600; }
+
+/* ---------- detection matrix as an LED board ----------------------------- */
+
+.matrix-card { width: fit-content; max-width: 100%; }
+.matrix { border-spacing: 2px; }
+.matrix th { font-family: var(--mono); font-size: 11px; letter-spacing: 0.05em; }
+
+/* Suite labels run vertically so the cells stay square and the board reads as a
+   panel of lamps rather than a table. The defect column takes all the slack. */
+.matrix thead th:not(.rot) {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
+  padding: 8px 0;
+  vertical-align: bottom;
+  color: var(--text-muted);
+}
+.matrix th.rot {
+  position: sticky; left: 0; z-index: 1;
+  background: var(--surface);
+  text-align: left;
+  padding-right: 14px;
+}
+.matrix th.rot .m-title { color: var(--text-muted); font-family: var(--sans); font-weight: 400; }
+.matrix td {
+  width: 30px; height: 30px;
+  padding: 0;
+  border-radius: 3px;
+  font-weight: 700;
+}
 .matrix td a { color: inherit; display: block; line-height: 30px; text-decoration: none; }
 .matrix td a:hover { text-decoration: none; }
-.matrix td.hit:hover, .matrix td.miss:hover { outline: 1px solid var(--border-strong); }
 
-/* Provenance panel on the suite pages. */
+/* Lit: filled, raised, glyph "+". */
+.matrix td.hit, .led-hit {
+  background: var(--lit);
+  color: color-mix(in srgb, var(--pass) 70%, white);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--pass) 55%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--pass) 30%, transparent),
+    0 0 7px color-mix(in srgb, var(--pass) 22%, transparent);
+}
+/* Recessed: sunken, near-black, glyph "·". Fill and relief carry the state, not
+   colour alone — the glyph differs too. */
+.matrix td.miss, .led-miss {
+  background: color-mix(in srgb, var(--fail) 6%, var(--recess));
+  color: color-mix(in srgb, var(--fail) 60%, var(--text-faint));
+  box-shadow:
+    inset 0 0 0 1px #1a1e25,
+    inset 0 2px 3px rgba(0, 0, 0, 0.85);
+}
+.matrix td.hit:hover, .matrix td.miss:hover { outline: 1px solid var(--accent); }
+.matrix td:focus-within { outline: 2px solid var(--accent); }
+
+.legend {
+  display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center;
+  font-family: var(--mono); font-size: 11.5px; color: var(--text-muted);
+  margin-top: 14px;
+}
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.legend i, .pips i {
+  width: 20px; height: 20px; border-radius: 3px;
+  font-style: normal; font-weight: 700; font-size: 12px;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: none;
+}
+
+/* Catalog row strip: the same lamps as the matrix, one per suite, so a defect's
+   row on /defects reads identically to its row on /benchmark. */
+.pips { display: flex; align-items: center; gap: 3px; justify-content: flex-end; }
+.pips i { width: 14px; height: 14px; border-radius: 2px; font-size: 9px; }
+.pips .pips-count {
+  font-family: var(--mono); font-size: 11.5px; color: var(--text-muted);
+  margin-left: 7px; min-width: 3.2em; text-align: right;
+}
+.pips.is-none .pips-count { color: var(--fail); font-weight: 600; }
+
+/* ---------- instrument trace (/runs/{id}) -------------------------------- */
+
+.trace { display: flex; flex-direction: column; gap: 10px; }
+
+.check {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--idle);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  background: var(--surface);
+  padding: 12px 16px;
+}
+.check.is-pass { border-left-color: var(--pass); }
+.check.is-fail { border-left-color: var(--fail); background: color-mix(in srgb, var(--fail) 4%, var(--surface)); }
+.check-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.check-no {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  flex: none;
+  width: 2.4em;
+}
+.check-id { font-family: var(--mono); font-size: 12.5px; font-weight: 600; }
+.check-dur { display: flex; align-items: center; gap: 8px; flex: none; }
+.check-dur .bar { width: 84px; min-width: 0; height: 4px; }
+.check-dur .num { font-size: 11.5px; color: var(--text-muted); }
+
+/* Step log as a fixed-width trace: 01/02/03 gutter, kind, assertion text. */
+.timeline.trace-steps {
+  counter-reset: step;
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  border-left: 0;
+}
+.timeline.trace-steps li {
+  counter-increment: step;
+  display: grid;
+  grid-template-columns: 2.4em 4.2em minmax(0, 1fr);
+  gap: 0 10px;
+  align-items: baseline;
+  padding: 4px 0 4px 10px;
+  border-left: 2px solid var(--border);
+}
+.timeline.trace-steps li::before {
+  content: counter(step, decimal-leading-zero);
+  position: static;
+  width: auto; height: auto;
+  border: 0; border-radius: 0; background: none;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.timeline.trace-steps li.ok  { border-left-color: color-mix(in srgb, var(--pass) 55%, transparent); }
+.timeline.trace-steps li.bad { border-left-color: var(--fail); }
+.timeline.trace-steps .t-when {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.timeline.trace-steps li.ok  .t-when { color: var(--pass); }
+.timeline.trace-steps li.bad .t-when { color: var(--fail); }
+.timeline.trace-steps .t-what { font-size: 12.5px; color: var(--text); }
+
+/* ---------- run history -------------------------------------------------- */
+
+/* The seeded benchmark is the run everything else is compared against, and it
+   sinks to the bottom of the list as lab runs accumulate. Mark it. */
+table.data tr.is-benchmark td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
+table.data tr.is-benchmark td { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+
+/* ---------- provenance panel (suite pages) ------------------------------- */
+
 .prov { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; font-size: 13px; }
-.prov dt { color: var(--text-faint); font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em;
-           text-transform: uppercase; padding-top: 3px; }
+.prov dt { color: var(--text-muted); font-family: var(--mono); font-size: 10.5px; font-weight: 600;
+           letter-spacing: 0.08em; text-transform: uppercase; padding-top: 3px; }
 .prov dd { margin: 0; color: var(--text-muted); }
 
-/* Lab: the per-defect checkbox grid. */
+/* ---------- suite cards (/suites) ---------------------------------------- */
+
+.suite-bars {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 8px 24px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.suite-bar { display: flex; align-items: center; gap: 10px; }
+.suite-bar .board-label { flex: 0 0 5.6em; }
+.suite-bar .bar { flex: 1 1 auto; }
+.suite-bar .num { flex: 0 0 3.4em; text-align: right; color: var(--text); }
+.suite-bar-note { grid-column: 1 / -1; font-size: 11.5px; color: var(--fail); }
+.suite-bars + .row { margin-top: 14px; }
+
+/* ---------- small shared relationships (replaces inline styles) ---------- */
+
+.hint { margin-top: 10px; }
+.card + .note, .section > .card + .note { margin-top: 14px; }
+.statusline-note { margin: -8px 0 0; }
+.suite-blurb { margin-top: 10px; }
+.card-head.plain { padding: 0 0 14px; border: 0; }
+.field.tight { flex: 0 0 auto; }
+.row.tight { gap: 8px; flex-wrap: nowrap; }
+
+/* ---------- lab: the per-defect checkbox grid ---------------------------- */
+
+.toggle-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  margin-bottom: 8px;
+}
+.toggle-group-head .btn { margin-left: auto; }
 .toggles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px 18px; }
 .toggle { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--text-muted); }
 .toggle input { margin-top: 2px; flex: none; }
 .toggle b { color: var(--text); font-weight: 550; }
 
-@media (max-width: 640px) { .prov { grid-template-columns: minmax(0, 1fr); gap: 2px 0; }
-                            .prov dd { margin-bottom: 10px; } }
+/* ---------- 375px ------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .hero { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .tour li { grid-template-columns: 30px minmax(0, 1fr); }
+  .tour li span { grid-column: 2; }
+}
+
+@media (max-width: 640px) {
+  h1 { font-size: 17px; }
+  .hero-copy h1 { font-size: 21px; }
+  .hero-actions .btn { flex: 1 1 auto; text-align: center; }
+  .verdict { padding: 16px; }
+  .verdict-value { font-size: 28px; }
+  .finding-value { font-size: 32px; }
+  .brand-sub { display: none; }
+  .prov { grid-template-columns: minmax(0, 1fr); gap: 2px 0; }
+  .prov dd { margin-bottom: 10px; }
+  .board > li { gap: 12px 16px; padding: 14px 0; }
+  .board-rank { width: 30px; font-size: 20px; }
+  .board-id { flex-basis: calc(100% - 46px); }
+  .board-fig, .board-fp { flex: 1 1 100%; width: auto; }
+  .board-stats { flex: 1 1 100%; }
+  .matrix th.rot .m-title { display: none; }
+  .timeline.trace-steps li { grid-template-columns: 2.4em minmax(0, 1fr); }
+  .timeline.trace-steps .t-when { grid-column: 2; }
+  .check-dur .bar { width: 56px; }
+}

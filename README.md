@@ -3,6 +3,9 @@
 A benchmark harness that answers one question with evidence: do AI-generated tests actually
 catch real defects, or do they just look like tests?
 
+![The detection matrix: 17 seeded defects down, 4 competing test suites across. A lit cell is a
+defect that suite caught; a recessed cell is one it missed.](docs/screenshots/hero.png)
+
 ## What it does
 
 - Hosts three small target applications (cart pricing, token auth, a double-entry ledger)
@@ -17,6 +20,10 @@ catch real defects, or do they just look like tests?
   false positive and earns nothing.
 - Persists every run, per-check result and ordered step log to SQLite, so any run replays
   exactly as it was computed.
+- Runs headless for CI (`python -m app.cli bench`), gating on recall and exporting the result as
+  JSON and JUnit XML.
+- Minimises by delta debugging: the smallest set of a suite's checks that keeps all of its
+  recall, and the smallest cart that still exposes a pricing defect.
 
 ## Why it exists / the question it answers
 
@@ -42,6 +49,27 @@ Requires Python 3.12 (the venv is built with `/opt/homebrew/bin/python3.12`).
 `run.sh` creates `.venv` if missing, installs requirements, seeds one full benchmark run
 (idempotent and deterministic), and starts uvicorn on port 8011.
 
+Headless, for a build step:
+
+```bash
+python -m app.cli bench --min-recall 0.9            # exit 1 if a suite scores below 90%
+python -m app.cli bench --json run.json --junit junit.xml
+python -m app.cli compare docs/bench-baseline.json run.json
+```
+
+Real output of that benchmark, pasted:
+
+```
+SUITE       CHECKS  FOUND  RECALL  PRECISION  FP  MEAN TTD  RUNTIME
+----------  ------  -----  ------  ---------  --  --------  -------
+expert      24      16/17  94.1%   1.00       0   0.18 ms   6.5 ms
+llm_tooled  20      13/17  76.5%   1.00       0   0.09 ms   4.7 ms
+llm_naive   17      7/17   41.2%   0.17       35  0.08 ms   3.0 ms
+checklist   11      2/17   11.8%   1.00       0   0.06 ms   2.1 ms
+
+18 builds, 1296 check results, 33 ms, seed 20260804
+```
+
 ## What to look at first
 
 A five-minute tour, in order:
@@ -57,13 +85,63 @@ A five-minute tour, in order:
 4. **http://127.0.0.1:8011/suites/llm_naive** - precision 0.17. Two of its checks assert
    behaviour the spec never promised, so they fail on the clean build and generate 35 bogus
    failure reports. The provenance panel states plainly that this suite is a committed fixture.
-5. **http://127.0.0.1:8011/lab** - untick every defect except `AUT-006`, run it, then run it
+5. **http://127.0.0.1:8011/suites/expert** - the redundancy panel. Delta debugging says 15 of
+   its 24 checks carry all 16 of its detections; the other 9 could be deleted without losing a
+   defect in this run, and the check table marks which is which.
+6. **http://127.0.0.1:8011/lab** - untick every defect except `AUT-006`, run it, then run it
    again with a different seed and watch the flaky cells move.
+
+## Screenshots
+
+All captured from the seeded run, not mocked up.
+
+**The overview** leads with the measured verdict: best suite against worst on identical defects,
+then the three findings the run actually produced.
+
+![Overview: 94.1% against 11.8% recall, 82 points apart, and the three findings from run
+1](docs/screenshots/overview.png)
+
+**The ranked scoreboard** on `/benchmark`. Suites are ordered by recall; the spec-only suite's
+35 false positives - the bogus failure reports a human would have to triage - are called out
+rather than buried in a column.
+
+![Ranked scoreboard: expert 94.1% recall at 1.00 precision, LLM spec-only 41.2% at 0.17 with 35
+false positives](docs/screenshots/scoreboard.png)
+
+**The catalog** on `/defects`. Each row carries one lamp per suite in matrix order, so
+`CHK-003` reads as four recessed lamps and a red `0/4` without opening anything.
+
+![Defect catalog: 17 rows, each with a four-lamp detection strip and a caught-by
+count](docs/screenshots/catalog.png)
+
+**The run replay** on `/runs/1?suite=expert&build=CHK-004`. Every check is replayed from the
+persisted step log with its assertions and duration, so the exact line that caught the
+shipping-threshold off-by-one is readable: "shipping free at the threshold, got 4.99".
+
+![Run replay: numbered assertion trace per check with a pass/fail gutter and duration
+bars](docs/screenshots/run-replay.png)
+
+**The redundancy panel** on `/suites/expert`. Delta debugging over the check list: 15 of 24 checks
+carry all 16 detections, and the check table marks which ones are load-bearing.
+
+![Redundancy: 15 of 24 checks carry all of the expert suite's
+detections](docs/screenshots/redundancy.png)
+
+**The lab** on `/lab`. Pick the defects to build and the suites to run, choose a seed, and
+execute the benchmark live in a few tens of milliseconds.
+
+![Lab: per-suite and per-defect toggles, target filter and seed field](docs/screenshots/lab.png)
+
+**At 375px.** Every page holds at mobile width with no horizontal page scroll; wide boards scroll
+inside their own container.
+
+![The overview at 375px wide: the verdict card stacks under the headline and the
+findings become one column](docs/screenshots/mobile-375.png)
 
 ## How it works
 
 Everything runs in-process. No subprocess pytest, no Docker, no browser: 1296 check executions
-complete in about 35 ms, which is what makes the lab interactive and the runs reproducible.
+complete in 30-35 ms on this machine, which is what makes the lab interactive and the runs reproducible.
 
 ```
 app/targets/*.py        real logic + `if "CHK-003" in active:` seeded branches
@@ -77,6 +155,9 @@ app/runner.py           for each defect -> build with only that defect active
         |
         v
 SQLite (runs, results, scores, detections)  ->  FastAPI + Jinja2  ->  /benchmark, /runs/{id}
+                                            \
+                                             +->  app/cli.py       bench | compare, JSON + JUnit
+                                             +->  app/minimise.py  ddmin over checks and carts
 ```
 
 The only nondeterminism is one seeded defect (`AUT-006`) that skips signature verification on
@@ -105,6 +186,12 @@ the flake column a measurement rather than a constant.
   function means one process holds all 18 variants, no file rewriting and no import juggling, and
   a build is a `set[str]`. The cost is that the defect is visible in the source, which would be
   wrong for a blind study and is fine for a benchmark whose catalog is public anyway.
+- **Most of a suite is not carrying its weight.** `app/minimise.py` runs Zeller's ddmin over each
+  suite's check list, keeping only the checks needed to preserve the exact set of defects the full
+  suite caught: expert 15 of 24, llm_tooled 13 of 20, llm_naive 7 of 17, checklist 2 of 11. The
+  search is cheap because checks share no state, so one execution per (check, build) is a complete
+  oracle and ddmin runs over a cached table instead of re-executing. The result is 1-minimal, not
+  globally minimal - the true minimum is set cover - and the page says so.
 - **Flake needs a real generator.** An early version faked flake as a constant. It is now
   measured from outcome instability across 5 repeats, and `tests/test_defects.py` asserts the
   defect fires on 22-38% of 400 seeded trials - a genuinely intermittent mechanism rather than a
@@ -124,7 +211,7 @@ live.** Nothing in the UI is the output of an agent running now. Both suites are
 ## Tests
 
 ```bash
-./.venv/bin/python -m pytest -q      # 145 tests, all passing
+./.venv/bin/python -m pytest -q      # 172 tests, all passing
 ```
 
 What they cover:
@@ -142,6 +229,13 @@ What they cover:
 - **Routes** (`test_web.py`) - every page 200, unknown ids 404, the matrix renders exactly
   `defects x suites` cells, the lab POST runs and persists, and the recorded-fixture labelling is
   actually present in the HTML.
+- **Minimisation** (`test_minimise.py`) - ddmin itself against a synthetic predicate including the
+  1-minimality property and the duplicate-element case, then both real searches: the minimal check
+  set for `CHK-004` is a single check, and a three-line cart minimises to the one line that
+  exposes the tier off-by-one.
+- **CLI** (`test_cli.py`) - the recall gate's exit codes, the JSON round-trip back into
+  `runner.load_run`'s shape, the JUnit element contract, and the baseline comparison in both
+  directions.
 
 Deliberately not covered: CSS and layout (verified by hand at 375px and 1280px), uvicorn startup,
 and concurrent access to the SQLite file - the app is single-process by design.
@@ -165,3 +259,9 @@ and concurrent access to the SQLite file - the app is single-process by design.
   goes, are out of scope; a build carries exactly one.
 - **Mean time-to-detect is in-process cost.** It is useful for comparing suites and useless as a
   CI estimate.
+- **"Redundant" means redundant against this catalog.** The minimiser can only see the 17 defects
+  that exist here. A check it marks redundant may be the only thing standing between you and a
+  defect this catalog does not contain, and deleting checks on that advice would be a mistake. The
+  number is a measurement of overlap, not a recommendation.
+- **The JUnit export is checked against the element contract, not an XSD.** There is no single
+  canonical JUnit schema, and vendoring a third-party one would break the offline rule.

@@ -2,13 +2,29 @@
 
 ## Status
 
-Phases 1-5 are built and working. The app runs on port 8011 via `./run.sh`, seeds one full
-benchmark run at startup (idempotent, fixed seed 20260804), and serves eleven routes with no
-unhandled exceptions. The seeded run executes 72 checks from 4 suites against 18 builds (17
-seeded defects plus one clean) for 1296 check results in about 35 ms. Measured recall: Expert
-94.1%, LLM code-and-tools 76.5%, LLM spec-only 41.2%, spec checklist 11.8%; `CHK-003` is missed
-by every suite. **The test suite is green: 145 tests, 0 failures** (`./.venv/bin/python -m pytest -q`).
-Phases 6-9 are not started.
+Phases 1-5 and 8-11 are built and working; phases 6 and 7 are not started. The app runs on port
+8011 via `./run.sh`, seeds one full benchmark run at startup (idempotent, fixed seed 20260804),
+and serves eleven routes with no unhandled exceptions. The seeded run executes 72 checks from 4
+suites against 18 builds (17 seeded defects plus one clean) for 1296 check results in about
+31 ms. Measured recall: Expert 94.1%, LLM code-and-tools 76.5%, LLM spec-only 41.2%, spec
+checklist 11.8%; `CHK-003` is missed by every suite.
+
+The app wears the "test harness" identity from
+`MOSKA_MAIN/shared/UI_DIRECTION.md` (dot-grid wash, mono chrome, ranked scoreboard, LED detection
+board, terminal status strip, instrument trace on the replay), `/` leads with the measured verdict
+instead of four generic tiles, the catalog and the suite cards carry the same lit/recessed lamps as
+the matrix, and `docs/screenshots/` holds the eight showcase captures.
+`python -m app.cli` runs the benchmark headless, gates on recall, and exports JSON and JUnit XML;
+`.github/workflows/bench.yml` fails on a recall regression against a committed baseline.
+`app/minimise.py` runs ddmin over both a suite's check list and a failing cart: **15 of the expert
+suite's 24 checks carry all 16 of its detections**. **The test suite is green: 172 tests, 0
+failures** (`./.venv/bin/python -m pytest -q`).
+
+Phases 6 and 7 are blocked on a decision rather than on work. Phase 6 (live LLM suite generation)
+needs an API key and a policy on calling a model at run time, which would end the current
+guarantee that the app runs fully offline with no key. Phase 7 (browser-layer defects) needs
+Playwright as a dependency and a headless browser in CI. Neither should be started until Sandro
+decides those two things.
 
 ## How to pick up a task
 
@@ -203,39 +219,103 @@ Phases 6-9 are not started.
       Done when: `pytest -q` still passes with Playwright absent, and the browser mode is skipped
       with a clear message rather than failing.
 
-## Phase 8 — CI integration (not started)
+## Phase 8 — CI integration (done)
 
-- [ ] **BUG-8.1** Add a `python -m app.cli bench` entry point printing the scorecard as a table
+- [x] **BUG-8.1** Add a `python -m app.cli bench` entry point printing the scorecard as a table
       and exiting non-zero when any suite's recall drops below a threshold.
       Files: `app/cli.py` (new)
       Done when: `--min-recall 0.9` exits 1 for the checklist suite and 0 for the expert suite.
-- [ ] **BUG-8.2** Emit the detection matrix as JSON and JUnit XML.
+- [x] **BUG-8.2** Emit the detection matrix as JSON and JUnit XML.
       Files: `app/cli.py`, `tests/test_cli.py` (new)
       Done when: the JSON round-trips into `runner.load_run`-shaped data and the XML validates
       against the JUnit schema.
-- [ ] **BUG-8.3** Add a GitHub Actions workflow running the benchmark and posting the recall
+      **Deviation, deliberate:** the XML is checked against the JUnit *element contract*
+      (nesting, required attributes, counts that agree with the cases present) rather than an
+      XSD. There is no single canonical JUnit schema, and vendoring a third-party one would
+      break the offline rule for no gain. See the docstring on
+      `test_junit_xml_meets_the_junit_element_contract`.
+- [x] **BUG-8.3** Add a GitHub Actions workflow running the benchmark and posting the recall
       delta versus the previous run as a step summary.
-      Files: `.github/workflows/bench.yml` (new)
+      Files: `.github/workflows/bench.yml` (new), `docs/bench-baseline.json` (new),
+      `app/cli.py` (`compare`)
       Done when: the workflow runs offline with no secrets and fails only on a recall regression.
+      The "previous run" is a committed baseline export, so the comparison works on a fresh
+      clone with no CI history. `tests` and `bench` are separate jobs precisely so the bench
+      job's only failure mode is a recall regression.
 
-## Phase 9 — Delta-debugging test minimisation (not started)
+## Phase 9 — Delta-debugging test minimisation (done)
 
-- [ ] **BUG-9.1** Implement ddmin over a suite's check list to find the minimal subset that
+- [x] **BUG-9.1** Implement ddmin over a suite's check list to find the minimal subset that
       preserves a given defect's detection.
       Files: `app/minimise.py` (new), `tests/test_minimise.py` (new)
       Done when: for `CHK-004` the minimiser returns a single check and proves the subset still
       detects it.
-- [ ] **BUG-9.2** Report per-suite redundancy: how many checks could be deleted with no loss of
+- [x] **BUG-9.2** Report per-suite redundancy: how many checks could be deleted with no loss of
       recall.
-      Files: `app/minimise.py`, `app/templates/suite_detail.html`
+      Files: `app/minimise.py`, `app/templates/suite_detail.html`, `app/main.py`
       Done when: each suite page shows a minimal detecting subset size alongside its check count.
-- [ ] **BUG-9.3** Minimise the failing input itself, not just the check set, for the checkout
+      Measured: expert 15/24, llm_tooled 13/20, llm_naive 7/17, checklist 2/11.
+- [x] **BUG-9.3** Minimise the failing input itself, not just the check set, for the checkout
       target.
       Files: `app/minimise.py`
       Done when: given a failing 3-line cart the minimiser returns the smallest cart that still
       exposes the defect.
+      Line-level only: it drops whole lines, it does not shrink a quantity or a unit price.
 
 ---
+
+## Phase 10 — Visual identity: "test harness" (done)
+
+Design spec: `MOSKA_MAIN/shared/UI_DIRECTION.md`, Buggy section. This phase is a
+restyle only. No runner logic, scoring rule, defect or suite may change, and every
+number the site reports must be identical before and after.
+
+- [x] **BUG-10.1** Add the dot-grid page wash and the monospace heading scale.
+      Files: `app/static/app.css`
+      Done when: headings render mono/uppercase with tracking, and the grid never drops
+      any text below WCAG AA contrast.
+- [x] **BUG-10.2** Rebuild the suite scorecard on /benchmark as a ranked scoreboard.
+      Files: `app/templates/benchmark.html`, `app/static/app.css`
+      Done when: suites are ordered by recall with a visible rank numeral, recall is the
+      hero figure, and the spec-only suite's 35 false positives are impossible to miss.
+- [x] **BUG-10.3** Restyle the detection matrix as a lit/recessed LED board.
+      Files: `app/templates/benchmark.html`, `app/static/app.css`
+      Done when: hit and miss differ by fill or glyph and not by colour alone, existing
+      title/link behaviour still works, and the board scrolls inside `.table-wrap` at 375px.
+- [x] **BUG-10.4** Add a terminal-style run status strip (run id, seed, builds, results, ms).
+      Files: `app/templates/benchmark.html`, `run_detail.html`, `lab.html`, `app/static/app.css`
+      Done when: the same component renders on all three pages from existing run metadata.
+- [x] **BUG-10.5** Give /runs/{id} an instrument-trace feel: fixed-width step numbering,
+      duration bars, pass/fail gutter.
+      Files: `app/templates/run_detail.html`, `app/static/app.css`
+      Done when: a long run reads as a scannable trace rather than a wall of rows.
+- [x] **BUG-10.6** Rebuild `/` around the measured verdict instead of four generic metric tiles.
+      Files: `app/templates/index.html`, `app/main.py` (`headline`), `app/static/app.css`
+      Done when: the page opens with best-against-worst recall and the gap between them, the run's
+      three findings read as figures rather than bullets, and every number on it is computed.
+- [x] **BUG-10.7** Lead `/defects/{id}` with a verdict strip stating how many suites caught it.
+      Files: `app/templates/defect_detail.html`, `app/main.py`, `app/static/app.css`
+      Done when: `CHK-003` opens with `0/4` and the sentence "It survived every suite in this run".
+- [x] **BUG-10.8** Carry the matrix's lit/recessed lamps into the catalog and the suite cards.
+      Files: `app/templates/defects.html`, `app/templates/suites.html`, `app/static/app.css`
+      Done when: each catalog row shows one lamp per suite in matrix order, and each suite card
+      shows comparable recall and precision bars.
+- [x] **BUG-10.9** Add bulk selection to the lab and retire the presentational inline styles.
+      Files: `app/templates/lab.html`, all templates, `app/static/app.css`
+      Done when: All / None / Only-this-target set the checkboxes without a page load, and the only
+      remaining `style=` attributes are data-driven bar widths.
+      Not covered by pytest (vanilla DOM); verified by driving the buttons in a real browser:
+      17 defects -> 0 -> 17 -> 5 for ledger only.
+
+## Phase 11 — Showcase assets (done)
+
+- [x] **BUG-11.1** Capture screenshots into `docs/screenshots/`: hero (benchmark matrix),
+      scoreboard, run replay, lab, plus one at 375px.
+      Done when: five captioned PNGs exist, taken after Phase 10 lands.
+      Eight shipped: `hero`, `overview`, `scoreboard`, `catalog`, `run-replay`, `redundancy`,
+      `lab`, `mobile-375`. All 2x, all captured from the seeded run.
+- [x] **BUG-11.2** Link the hero image at the top of README.md.
+      Done when: the README renders the hero on GitHub without a broken image.
 
 ## Deliberately out of scope
 
@@ -274,7 +354,7 @@ Phases 6-9 are not started.
 
 - Built a mutation-testing benchmark that grades test suites instead of code: 17 seeded defects
   across 6 categories, 4 competing suites, 72 checks executed against 18 program variants in
-  ~35 ms in-process, scored on recall, precision, time-to-detect and measured flake rate.
+  ~31 ms in-process, scored on recall, precision, time-to-detect and measured flake rate.
   *(Earned by BUG-1.1 through BUG-3.6.)*
 - Designed the scoring rule that makes the benchmark falsifiable - a check earns a detection only
   if it fails on the defective build and passes on the clean one - which exposed a suite scoring
@@ -284,6 +364,11 @@ Phases 6-9 are not started.
   assertion and step log, and an interactive lab, with all four suites' provenance stated in the
   UI including that two are committed fixtures rather than live model output.
   *(Earned by BUG-2.6, BUG-3.5, BUG-4.1 through BUG-4.6.)*
+- Applied delta debugging to the suites themselves: ddmin over each suite's check list showed
+  that 15 of the expert suite's 24 checks carry all 16 of its detections, and the same algorithm
+  reduces a failing cart to the single line that reproduces a pricing defect. Shipped headless as
+  a CI gate with JSON and JUnit export and a recall-regression check against a committed baseline.
+  *(Earned by BUG-8.1 through BUG-9.3.)*
 - NOT YET EARNED: "measured how much tool access closes the gap between LLM-authored and
   expert-authored test suites, across N generations per condition" - requires BUG-6.1 through
   BUG-6.4. Today's `llm_*` suites are single hand-committed fixtures, so no claim about model

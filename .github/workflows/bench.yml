@@ -1,0 +1,55 @@
+name: benchmark
+
+# Two jobs on purpose. `tests` fails on any broken test, as it should. `bench`
+# fails on exactly one thing: a suite's recall regressing against the committed
+# baseline in docs/bench-baseline.json. Neither job needs a secret, a service
+# container, or network access beyond installing the requirements.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -q
+
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+
+      - name: Run the benchmark
+        run: python -m app.cli bench --json bench.json --junit junit.xml
+
+      - name: Recall delta versus the committed baseline
+        run: |
+          {
+            echo "### Recall versus \`docs/bench-baseline.json\`"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+          python -m app.cli compare docs/bench-baseline.json bench.json \
+            >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the run
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-run
+          path: |
+            bench.json
+            junit.xml

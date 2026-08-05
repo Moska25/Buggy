@@ -29,7 +29,7 @@
   <div class="section-head"><h2>By category</h2></div>
   <div class="row">
     {% for cat in categories %}
-      <span class="pill pill-idle">{{ cat }} — {{ counts[cat] }}</span>
+      <span class="pill pill-idle">{{ cat }} {{ counts[cat] }}</span>
     {% endfor %}
   </div>
 </div>
@@ -52,15 +52,26 @@
           <td>{{ d.title }}</td>
           <td><span class="pill pill-idle">{{ d.category }}</span></td>
           <td><span class="pill {{ d.severity_pill }}">{{ d.severity }}</span></td>
-          <td class="num">
+          <td>
             {% if data %}
               {% set ns = namespace(hits=0) %}
               {% for sid in data.suite_ids %}
                 {% set info = data.detections.get((sid, d.id)) %}
                 {% if info and info.detected %}{% set ns.hits = ns.hits + 1 %}{% endif %}
               {% endfor %}
-              {% if ns.hits %}{{ ns.hits }} / {{ data.suite_ids | length }}
-              {% else %}<span class="pill pill-fail pill-plain">0 / {{ data.suite_ids | length }}</span>{% endif %}
+              {# one lamp per suite, in the same order and the same lit/recessed
+                 language as the matrix on /benchmark #}
+              <div class="pips {{ 'is-none' if not ns.hits }}">
+                {% for sid in data.suite_ids %}
+                  {% set info = data.detections.get((sid, d.id)) %}
+                  {% if info and info.detected %}
+                    <i class="led-hit" title="{{ suite_by_id[sid].name }} caught it via {{ info.first_check_id }}">+</i>
+                  {% else %}
+                    <i class="led-miss" title="{{ suite_by_id[sid].name }} missed it">·</i>
+                  {% endif %}
+                {% endfor %}
+                <span class="pips-count">{{ ns.hits }}/{{ data.suite_ids | length }}</span>
+              </div>
             {% else %}<span class="faint">-</span>{% endif %}
           </td>
         </tr>
